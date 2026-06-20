@@ -1,0 +1,77 @@
+node_modules/
+logs/
+*.log
+.env
+.env.local
+*.sqlite
+*.db
+
+# 图片文件（项目预览用 readme 截图即可）
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.ico
+
+# 临时数据采集脚本（_ 开头）
+_*.js
+_*.ks
+_*.json
+_*.txt
+_*.log
+
+# 备份
+*backup*/
+*_backup_*
+
+# 垃圾文件
+console.log(t.name))
+t.name))
+nul
+
+# 非核心脚本
+add_cities_batch1.js
+add50.ks
+add50b.ks
+add_batch3.ks
+add_batch4.ks
+check-attr-gaps.js
+check-cities.js
+check-fake.js
+check-folders.js
+check-gaps.js
+check-images.js
+check-img.js
+check-missing.js
+check_db.js
+check_schema.js
+cleanup-attractions.js
+cleanup-audit.js
+cleanup-data.js
+data-audit.js
+delete-fake.js
+download-all-images.js
+download-images*.js
+dump-all.js
+e2e-test*.js
+fill-*.js
+fill_*.js
+fix-folders.js
+full-audit.js
+img-audit.js
+mkdir_cq_tj.js
+rebuild-folders.js
+setup-all-folders.js
+setup-folders.js
+test-api.ps1
+test-redirect.js
+
+# 网页备份
+*_backup_*.html
+*_2026060*.html
+
+# 数据库文件
+*.db
+*.sqlite

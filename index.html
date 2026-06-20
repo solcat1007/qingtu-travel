@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>晴途 QingTu - 二次元文旅3D地图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+<script>
+// Self-destruct stale Service Workers
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+}
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        qingtu: { 50: '#F0F7FC', 100: '#DBECF7', 200: '#B8D9F0', 300: '#7EB8DA', 400: '#5A9BCB', 500: '#3D7DB5', 600: '#2C5F8A', 700: '#244A6E', 800: '#1D3A56', 900: '#15283A' },
+      },
+      fontFamily: {
+        sans: ['"Noto Sans SC"','"PingFang SC"','"Microsoft YaHei"', 'sans-serif'],
+        display: ['"ZCOOL XiaoWei"','"Noto Serif SC"', 'serif'],
+      },
+    },
+  },
+};
+</script>
+<style>
+  * { margin:0;padding:0;box-sizing:border-box; }
+  body { overflow:hidden; font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; background:#0a0e17; }
+  #three-canvas { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:1; }
+  .glass-panel { background:rgba(10,14,23,0.88); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(126,184,218,0.15); border-radius:16px; }
+  .glass-card { background:rgba(30,41,59,0.75); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1px solid rgba(126,184,218,0.1); border-radius:12px; }
+  .bottom-nav { position:fixed; bottom:0; left:50%; transform:translateX(-50%); z-index:100; display:flex; gap:0; background:rgba(15,23,42,0.92); backdrop-filter:blur(24px); border:1px solid rgba(126,184,218,0.2); border-bottom:none; border-radius:20px 20px 0 0; overflow:hidden; }
+  .nav-tab { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:10px 28px; cursor:pointer; transition:all 0.3s; color:rgba(148,163,184,0.8); min-width:100px; border:none; background:transparent; font-family:inherit; }
+  .nav-tab:hover { color:rgba(200,220,240,0.9); background:rgba(126,184,218,0.08); }
+  .nav-tab.active { color:#7EB8DA; background:rgba(126,184,218,0.12); }
+  .nav-tab svg { width:22px; height:22px; }
+  .nav-tab span { font-size:11px; font-weight:500; letter-spacing:0.5px; }
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:rgba(30,41,59,0.3); }
+  ::-webkit-scrollbar-thumb { background:rgba(126,184,218,0.3); border-radius:2px; }
+  .loading-screen { position:fixed; inset:0; z-index:9999; background:#0a0e17; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.8s ease-out; }
+  .loading-screen.hidden { opacity:0; pointer-events:none; }
+  .loading-logo { font-family:'ZCOOL XiaoWei','Noto Serif SC',serif; font-size:4rem; font-weight:400; background:linear-gradient(135deg,#7EB8DA,#5A9BCB,#E8A87C); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:20px; animation:logoFloat 2s ease-in-out infinite; }
+  @keyframes logoFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+  .loading-bar-track { width:200px; height:2px; background:rgba(126,184,218,0.15); border-radius:1px; overflow:hidden; margin-top:16px; }
+  .loading-bar-fill { height:100%; width:0; background:linear-gradient(90deg,#7EB8DA,#5A9BCB,#E8A87C); border-radius:1px; transition:width 0.3s ease-out; }
+</style>
+<link rel="stylesheet" href="/css/mascot.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-logo">晴途</div>
+  <p class="text-slate-400 text-lg mb-8 font-light">QingTu · 二次元文旅</p>
+  <div class="flex gap-1.5">
+    <div class="w-2.5 h-2.5 rounded-full bg-qingtu-300 animate-bounce" style="animation-delay:0s"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-qingtu-400 animate-bounce" style="animation-delay:0.15s"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-qingtu-500 animate-bounce" style="animation-delay:0.3s"></div>
+  </div>
+  <p id="loadProgress" class="text-xs text-slate-500 mt-4">正在初始化场景...</p>
+</div>
+
+<canvas id="three-canvas"></canvas>
+
+<div id="topBar" class="fixed top-0 left-0 right-0 z-50 px-5 py-4 pointer-events-none" style="background:linear-gradient(to bottom,rgba(10,14,23,0.9) 0%,transparent 100%);">
+  <div class="flex items-center justify-between max-w-7xl mx-auto">
+    <div class="flex items-center gap-3">
+      <h1 class="text-2xl font-extrabold bg-gradient-to-r from-qingtu-300 to-qingtu-500 bg-clip-text text-transparent font-display pointer-events-auto">晴途</h1>
+      <span class="text-xs text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded-full pointer-events-auto">QingTu</span>
+    </div>
+    <div class="flex items-center gap-3 pointer-events-auto">
+      <div class="relative">
+        <input type="text" id="citySearch" placeholder="搜索城市..."
+               class="bg-slate-800/70 text-slate-200 text-sm px-3 py-1.5 rounded-full border border-slate-700/50 w-40 focus:w-56 transition-all duration-300 outline-none focus:border-qingtu-400/50 placeholder:text-slate-500">
+        <div id="searchResults" class="absolute top-full mt-2 left-0 right-0 bg-slate-900/95 backdrop-blur-xl rounded-xl border border-slate-700/50 max-h-64 overflow-y-auto hidden"></div>
+      </div>
+      <div id="statsBadge" class="hidden md:flex items-center gap-1.5 bg-slate-800/60 rounded-full px-3 py-1.5 text-xs text-slate-400 border border-slate-700/50">
+        <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+        <span id="statsText">192城 · 954景点</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="fpsCounter" class="fixed top-20 right-4 z-50 bg-slate-900/80 text-xs text-slate-400 px-2.5 py-1 rounded-full border border-slate-700/40 font-mono" style="min-width:56px;text-align:center;">-- FPS</div>
+
+<div id="cityPanel" class="fixed right-0 top-0 h-full z-40 w-full max-w-md transform translate-x-full transition-transform duration-500 ease-out">
+  <div class="h-full glass-panel m-3 ml-0 overflow-y-auto" style="border-radius:20px 0 0 20px;">
+    <button id="closeCityPanel" class="absolute top-4 left-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-800/70 text-slate-400 hover:text-white transition-colors z-10">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="pt-16 px-6 pb-6">
+      <div id="cityHero" class="w-full h-32 rounded-xl mb-5 flex items-end p-4 relative overflow-hidden" style="background:linear-gradient(135deg,#1e293b,#334155);">
+        <div class="absolute inset-0 opacity-20" id="cityHeroBg"></div>
+        <div><h2 id="cityNameDisplay" class="text-3xl font-black text-white font-display"></h2><p id="cityDescDisplay" class="text-sm text-slate-300 mt-1"></p></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <div class="glass-card p-3 text-center"><div class="text-2xl font-bold text-qingtu-300" id="cityAttractionCount">-</div><div class="text-xs text-slate-500 mt-0.5">景点</div></div>
+        <div class="glass-card p-3 text-center"><div class="text-2xl font-bold text-amber-400" id="cityFoodCount">-</div><div class="text-xs text-slate-500 mt-0.5">美食</div></div>
+        <div class="glass-card p-3 text-center"><div class="text-2xl font-bold text-emerald-400" id="cityHotelCount">-</div><div class="text-xs text-slate-500 mt-0.5">酒店</div></div>
+        <div class="glass-card p-3 text-center"><div class="text-2xl font-bold text-purple-400" id="cityGuideCount">-</div><div class="text-xs text-slate-500 mt-0.5">攻略</div></div>
+      </div>
+      <div id="cityTags" class="flex flex-wrap gap-2 mb-5"></div>
+      <div class="space-y-2">
+        <button onclick="viewCityAttractions()" class="w-full glass-card p-3 text-left flex items-center gap-3 hover:bg-slate-700/30 transition-colors group">
+          <div class="w-8 h-8 rounded-lg bg-qingtu-500/20 flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7EB8DA" stroke-width="2"><path d="M17.5 19H9a7 7 0 0 0 7-7V5h1.5v14Z"/><circle cx="9" cy="12" r="7"/></svg></div>
+          <span class="text-slate-200 text-sm group-hover:text-white">查看景点</span>
+          <svg class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <button onclick="viewCityFoods()" class="w-full glass-card p-3 text-left flex items-center gap-3 hover:bg-slate-700/30 transition-colors group">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18"/></svg></div>
+          <span class="text-slate-200 text-sm group-hover:text-white">特色美食</span>
+          <svg class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="listPanel" class="fixed left-0 top-0 h-full z-40 w-full max-w-sm transform -translate-x-full transition-transform duration-500 ease-out">
+  <div class="h-full glass-panel m-3 mr-0 overflow-y-auto" style="border-radius:0 20px 20px 0;">
+    <button id="closeListPanel" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-800/70 text-slate-400 hover:text-white transition-colors z-10">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <div class="pt-16 px-5 pb-24" id="listPanelContent">
+      <h3 class="text-lg font-bold text-slate-200 mb-4" id="listPanelTitle">列表</h3>
+      <div id="listPanelItems" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+
+<div id="legend" class="fixed left-4 bottom-24 z-30 flex flex-col gap-2">
+  <div class="glass-card px-3 py-2 flex items-center gap-2 text-xs"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span><span class="text-slate-400">高铁线路</span></div>
+  <div class="glass-card px-3 py-2 flex items-center gap-2 text-xs"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span><span class="text-slate-400">航空航线</span></div>
+  <div class="glass-card px-3 py-2 flex items-center gap-2 text-xs"><span class="w-2.5 h-2.5 rounded-full bg-qingtu-300 animate-pulse"></span><span class="text-slate-400">城市点位</span></div>
+</div>
+
+<nav class="bottom-nav" id="bottomNav">
+  <button class="nav-tab active" data-panel="map" id="navMap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    <span>3D 地图</span>
+  </button>
+  <button class="nav-tab" data-panel="train" id="navTrain">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="12" width="20" height="8" rx="2"/><path d="M6 12V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/><circle cx="6" cy="17" r="1.5"/><circle cx="18" cy="17" r="1.5"/></svg>
+    <span>高铁系统</span>
+  </button>
+  <button class="nav-tab" data-panel="flight" id="navFlight">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    <span>航空航线</span>
+  </button>
+</nav>
+
+<div id="toast" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] glass-card px-6 py-3 text-sm text-slate-200 opacity-0 transition-opacity duration-300 pointer-events-none"></div>
+
+<script src="/js/lib/three.min.js?v=2"></script>
+<script src="/js/lib/OrbitControls.js?v=2"></script>
+<script src="/js/cities-preload.js?v=2"></script>
+<script src="/js/trains-preload.js?v=2"></script>
+<script src="/js/flights-preload.js?v=2"></script>
+<script src="js/modules/city-data.js?v=2"></script>
+<script src="js/modules/train-system.js?v=2"></script>
+<script src="js/modules/flight-system.js?v=2"></script>
+<script src="js/modules/camera-controls.js?v=2"></script>
+
+<script>
+
+let scene, camera, renderer, controls, clock;
+let cityMarkers = [];
+let activeTrains = [];
+let activePlanes = [];
+let currentPanel = 'map';
+let selectedCity = null;
+let isDragging = false;
+let fpsFrames = 0, fpsLastTime = 0, currentFPS = 60;
+
+// ==================== 工具函数 ====================
+function fetchWithTimeout(url, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => { controller.abort(); reject(new Error('Fetch timeout: ' + url)); }, timeoutMs);
+    fetch(url, { signal: controller.signal }).then(r => { clearTimeout(timer); resolve(r); }).catch(e => { clearTimeout(timer); reject(e); });
+  });
+}
+
+// 带重试的fetch
+async function fetchWithRetry(url, maxRetries = 3, timeoutMs = 5000) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      console.log('尝试加载:', url, '(第' + (i+1) + '次)');
+      return await fetchWithTimeout(url, timeoutMs);
+    } catch (e) {
+      console.warn('加载失败:', url, e.message);
+      if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  throw new Error('All retries failed: ' + url);
+}
+
+// ==================== 初始化场景（性能优化版）====================
+function initScene() {
+  const canvas = document.getElementById('three-canvas');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(1);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0e17);
+
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 100);
+  camera.position.set(0, 14, 20);
+  camera.lookAt(0, 0, 0);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.target.set(0, 0, 0);
+  controls.minDistance = 5;
+  controls.maxDistance = 40;
+  controls.maxPolarAngle = Math.PI * 0.55;
+  controls.minPolarAngle = Math.PI * 0.15;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.15;
+  controls.update();
+
+  controls.addEventListener('start', () => { isDragging = true; });
+  controls.addEventListener('end', () => { setTimeout(() => { isDragging = false; }, 200); });
+
+  clock = new THREE.Clock();
+  setupLights();
+  createStarfield();
+  createMapBase();
+  createClouds();
+  document.getElementById('loadProgress').textContent = '场景初始化完成';
+}
+
+// ==================== 光照（简化）====================
+function setupLights() {
+  scene.add(new THREE.AmbientLight(0x2a3a5c, 1.2));
+  scene.add(new THREE.HemisphereLight(0x7EB8DA, 0x1a2a3a, 0.6));
+  const sun = new THREE.DirectionalLight(0xFFF5E8, 1.5);
+  sun.position.set(15, 20, 10);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x4466aa, 0.4);
+  fill.position.set(-5, -2, -5);
+  scene.add(fill);
+}
+
+// ==================== 星空（精简：1500→400）====================
+function createStarfield() {
+  const geo = new THREE.BufferGeometry();
+  const cnt = 400;
+  const pos = new Float32Array(cnt * 3);
+  for (let i = 0; i < cnt; i++) {
+    pos[i*3] = (Math.random() - 0.5) * 60;
+    pos[i*3+1] = 8 + Math.random() * 25;
+    pos[i*3+2] = (Math.random() - 0.5) * 40;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0x8899cc, size: 0.04, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  })));
+}
+
+// ==================== 地图底板 ====================
+function createMapBase() {
+  const base = new THREE.Mesh(
+    new THREE.PlaneGeometry(18, 14, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.9, metalness: 0.1, transparent: true, opacity: 0.7 })
+  );
+  base.rotation.x = -Math.PI / 2;
+  base.position.y = -0.05;
+  scene.add(base);
+  const grid = new THREE.PolarGridHelper(12, 24, 12, 64, 0x2a3a5c, 0x2a3a5c);
+  grid.position.y = -0.04;
+  scene.add(grid);
+  const border = new THREE.Mesh(
+    new THREE.TorusGeometry(10, 0.04, 8, 50),
+    new THREE.MeshBasicMaterial({ color: 0x3d5a80, transparent: true, opacity: 0.4 })
+  );
+  border.rotation.x = -Math.PI / 2;
+  border.position.y = -0.03;
+  scene.add(border);
+}
+
+// ==================== 云朵（精简：30→12）====================
+function createClouds() {
+  const group = new THREE.Group();
+  group.name = 'clouds';
+  const mat = new THREE.MeshStandardMaterial({ color: 0x3a4a6a, roughness: 1, transparent: true, opacity: 0.25, depthWrite: false });
+  for (let i = 0; i < 6; i++) {
+    const cloud = new THREE.Group();
+    for (let j = 0; j < 2 + Math.floor(Math.random() * 3); j++) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.4, 4, 3), mat);
+      s.position.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 2);
+      cloud.add(s);
+    }
+    cloud.position.set((Math.random() - 0.5) * 18, 3 + Math.random() * 8, (Math.random() - 0.5) * 12);
+    cloud.userData = { speed: 0.08 + Math.random() * 0.22, dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize() };
+    group.add(cloud);
+  }
+  scene.add(group);
+}
+
+// ==================== 城市标记 ====================
+async function createCityMarkers() {
+  document.getElementById('loadProgress').textContent = '加载城市数据...';
+  let cities = null;
+  // 优先使用预加载数据（绕过 fetch 可能被浏览器拦截的问题）
+  const preloaded = window.__preloadedCities?.data || window.__preloadedCities;
+  if (preloaded && Array.isArray(preloaded) && preloaded.length > 0) {
+    console.log('使用预加载城市数据:', preloaded.length, '个城市');
+    cities = preloaded;
+    window.allCities = cities;
+  } else {
+    try {
+      const resp = await fetchWithRetry('/api/cities', 3, 8000);
+      const data = await resp.json();
+      if (!data.success) { createFallbackMarkers(); return; }
+      cities = data.data;
+      window.allCities = cities;
+    } catch (e) {
+      console.error('fetch 城市数据失败:', e.message);
+      createFallbackMarkers(); return;
+    }
+  }
+  try {
+    const group = new THREE.Group();
+    group.name = 'cityMarkers';
+    // 共享几何体以降低 GPU 内存
+    const ringGeo = new THREE.TorusGeometry(0.22, 0.03, 6, 16);
+    const orbGeo = new THREE.SphereGeometry(0.08, 6, 4);
+    cities.forEach((city, i) => {
+      const pos = latLngTo3D(city.latitude, city.longitude, 0.15);
+      const theme = getCityTheme(city.name);
+      const g = new THREE.Group();
+      g.position.copy(pos);
+      g.userData = { city, theme, id: i, floatPhase: Math.random() * Math.PI * 2, pulseSpeed: 0.8 + Math.random() * 1.2 };
+
+      const ringM = new THREE.MeshBasicMaterial({ color: new THREE.Color(theme.primary), transparent: true, opacity: 0.7, depthWrite: false });
+      const r = new THREE.Mesh(ringGeo, ringM);
+      r.rotation.x = -Math.PI / 2; r.position.y = 0.01; g.add(r);
+      const orb = new THREE.Mesh(orbGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(theme.primary) }));
+      orb.position.y = 0.1; g.add(orb);
+
+      // 存直接引用，避免动画循环里 getObjectByName
+      g.userData._ring = r;
+      g.userData._ringMat = ringM;
+
+      group.add(g);
+      cityMarkers.push(g);
+    });
+    scene.add(group);
+    const totalAttr = cities.reduce((s,c)=>s+(c.attractionCount||0),0);
+    document.getElementById('statsText').textContent = cities.length + '城 · ' + totalAttr + '景点';
+    document.getElementById('loadingScreen').classList.add('hidden');
+    window.allCities = cities;
+  } catch (e) { console.error('城市标记创建失败:', e.message, e.stack); createFallbackMarkers(); }
+}
+
+function createFallbackMarkers() {
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('statsText').textContent = '离线模式';
+}
+
+// ==================== 高铁线路 ====================
+async function createHSRLines() {
+  document.getElementById('loadProgress').textContent = '绘制高铁线路...';
+  let trainData = window.__preloadedTrains?.data || null;
+  if (!trainData) {
+    try {
+      const r = await fetchWithTimeout('/api/trains', 5000);
+      const d = await r.json();
+      if (d.success) trainData = d.data;
+    } catch (e) { console.error('高铁数据加载失败:', e); }
+  }
+  if (!trainData || !Array.isArray(trainData) || !trainData.length) return;
+  try {
+    const group = new THREE.Group();
+    group.name = 'hsrLines';
+    const cities = window.allCities || [];
+    const dedup = new Set();
+    // 限制数量以保证性能
+    const trainRoutes = [];
+    trainData.forEach(t => {
+      if (trainRoutes.length >= 40) return;
+      const key = [t.departure_city, t.arrival_city].sort().join('-');
+      if (dedup.has(key)) return;
+      dedup.add(key);
+      const dc = cities.find(c => c.name === t.departure_city);
+      const ac = cities.find(c => c.name === t.arrival_city);
+      if (!dc || !ac) return;
+      trainRoutes.push({ dc, ac, trainNumber: t.train_number });
+    });
+    trainRoutes.forEach((r, i) => {
+      const s = latLngTo3D(r.dc.latitude, r.dc.longitude, 0.25);
+      const e = latLngTo3D(r.ac.latitude, r.ac.longitude, 0.25);
+      const points = [s, e];
+      const curve = new THREE.CatmullRomCurve3(points);
+      const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(20));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xdc2626, transparent: true, opacity: 0.35, depthWrite: false }));
+      group.add(line);
+
+      const tt = getTrainTypeForRoute(i);
+      const train = createTrainModel(scene, tt);
+      const path = curve.getPoints(50);
+      train.rotation.order = 'YXZ';
+      train.userData = { path, progress: Math.random(), speed: 0.003 + Math.random() * 0.006 };
+      activeTrains.push(train);
+      group.add(train);
+    });
+    scene.add(group);
+  } catch (e) { console.error('高铁加载失败:', e); }
+}
+
+// ==================== 航班线路 ====================
+async function createFlightRoutes() {
+  document.getElementById('loadProgress').textContent = '绘制航空航线...';
+  let flightData = window.__preloadedFlights?.data || null;
+  if (!flightData) {
+    try {
+      const r = await fetchWithTimeout('/api/flights', 5000);
+      const d = await r.json();
+      if (d.success) flightData = d.data;
+    } catch (e) { console.error('航班数据加载失败:', e); }
+  }
+  if (!flightData || !Array.isArray(flightData) || !flightData.length) return;
+  try {
+    const group = new THREE.Group();
+    group.name = 'flightRoutes';
+    const cities = window.allCities || [];
+    const dedup = new Set();
+    // 限制数量以保证性能
+    const flightRoutes = [];
+    flightData.forEach(f => {
+      if (flightRoutes.length >= 40) return;
+      const key = [f.departure_city, f.arrival_city].sort().join('-');
+      if (dedup.has(key)) return;
+      dedup.add(key);
+      const dc = cities.find(c => c.name === f.departure_city);
+      const ac = cities.find(c => c.name === f.arrival_city);
+      if (!dc || !ac) return;
+      flightRoutes.push({ dc, ac, airline: f.airline, flightNumber: f.flight_number, aircraftType: f.aircraft_type });
+    });
+    flightRoutes.forEach((r, i) => {
+      const s = latLngTo3D(r.dc.latitude, r.dc.longitude, 0.25);
+      const e = latLngTo3D(r.ac.latitude, r.ac.longitude, 0.25);
+      const m = new THREE.Vector3((s.x+e.x)/2+(Math.random()-0.5)*2, Math.max(s.y,e.y)+3+Math.random()*2, (s.z+e.z)/2+(Math.random()-0.5)*2);
+      const path = createSmoothPath([s, m, e], 50);
+      const curve = new THREE.CatmullRomCurve3(path);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(30));
+      const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0x22D3EE, transparent: true, opacity: 0.4, depthWrite: false }));
+      group.add(line);
+      const at = r.aircraftType || 'A320', an = r.airline || '中国国航';
+      const plane = createAircraftModel(scene, at, an);
+      plane.rotation.order = 'YXZ';
+      plane.userData = { path: curve.getPoints(40), progress: Math.random(), speed: 0.002 + Math.random() * 0.004, flightData: { departure_city: r.dc.name, arrival_city: r.ac.name, airline: r.airline, flight_number: r.flightNumber, aircraft_type: r.aircraftType } };
+      activePlanes.push(plane);
+      group.add(plane);
+    });
+    scene.add(group);
+    document.getElementById('loadProgress').textContent = '启动完成';
+  } catch (e) { console.error('航班加载失败:', e); }
+}
+
+function findCity(name) {
+  if (!window.allCities) return null;
+  return window.allCities.find(c => c.name === name) || null;
+}
+
+// ==================== 动画循环（效率优化）====================
+function animate() {
+  requestAnimationFrame(animate);
+  window.__af = (window.__af || 0) + 1;
+  try {
+    const dt = Math.min(clock.getDelta(), 0.1), et = performance.now() * 0.001;
+
+    // FPS 计数（首次调用时重置计时）
+    if (fpsLastTime === 0) fpsLastTime = performance.now();
+    fpsFrames++;
+    if (performance.now() - fpsLastTime >= 1000) {
+      const elapsed = (performance.now() - fpsLastTime) / 1000;
+      currentFPS = elapsed > 0 ? Math.round(fpsFrames / elapsed) : 60;
+      const el = document.getElementById('fpsCounter');
+      if (el) {
+        el.textContent = currentFPS + ' FPS';
+        el.style.color = currentFPS < 40 ? '#ef4444' : currentFPS < 50 ? '#f59e0b' : '#94a3b8';
+      }
+      fpsFrames = 0; fpsLastTime = performance.now();
+    }
+
+    // 城市标记动画
+    if (cityMarkers) for (let i = 0; i < cityMarkers.length; i++) {
+      const m = cityMarkers[i]; if (!m || !m.userData) continue;
+      const p = m.userData.floatPhase + et;
+      const sc = 1 + Math.sin(p * 1.5) * 0.1;
+      const ring = m.userData._ring;
+      if (ring) { ring.scale.setScalar(sc); if (m.userData._ringMat) m.userData._ringMat.opacity = 0.5 + Math.sin(p * 1.5) * 0.2; }
+    }
+
+    // 高铁移动
+    if (activeTrains) for (let i = 0; i < activeTrains.length; i++) {
+      const t = activeTrains[i]; if (!t || !t.userData || !t.userData.path) continue;
+      t.userData.progress += t.userData.speed * dt * 60;
+      if (t.userData.progress >= 1) t.userData.progress = 0;
+      const pt = t.userData.path, idx = Math.floor(t.userData.progress * (pt.length - 1));
+      const ni = Math.min(idx + 1, pt.length - 1), lt = t.userData.progress * (pt.length - 1) - idx;
+      if (pt[idx] && pt[ni]) { t.position.lerpVectors(pt[idx], pt[ni], lt); const d = new THREE.Vector3().subVectors(pt[ni], pt[idx]).normalize(); if (d.length() > 0.001) { t.lookAt(t.position.clone().add(d)); t.rotateY(Math.PI / 2); } }
+    }
+
+    // 飞机移动
+    if (activePlanes) for (let i = 0; i < activePlanes.length; i++) {
+      const p = activePlanes[i]; if (!p || !p.userData || !p.userData.path) continue;
+      p.userData.progress += p.userData.speed * dt * 60;
+      if (p.userData.progress >= 1) p.userData.progress = 0;
+      const pt = p.userData.path, idx = Math.floor(p.userData.progress * (pt.length - 1));
+      const ni = Math.min(idx + 1, pt.length - 1), lt = p.userData.progress * (pt.length - 1) - idx;
+      if (pt[idx] && pt[ni]) { p.position.lerpVectors(pt[idx], pt[ni], lt); const d = new THREE.Vector3().subVectors(pt[ni], pt[idx]).normalize(); if (d.length() > 0.001) p.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d); }
+    }
+
+    // 云朵
+    const clouds = scene.getObjectByName('clouds');
+    if (clouds) {
+      const children = clouds.children;
+      for (let i = 0; i < children.length; i++) {
+        const c = children[i]; if (!c || !c.userData) continue;
+        c.position.x += c.userData.dir.x * c.userData.speed * dt;
+        c.position.z += c.userData.dir.z * c.userData.speed * dt;
+        if (Math.abs(c.position.x) > 10) c.position.x *= -0.9;
+        if (Math.abs(c.position.z) > 8) c.position.z *= -0.9;
+      }
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+    window.__rendered = (window.__rendered || 0) + 1;
+  } catch (e) {
+    window.__lastErr = e.message + ' @ ' + e.stack?.split('\n')[1]?.trim();
+  }
+}
+
+// ==================== 事件 ====================
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentPanel = tab.dataset.panel;
+    const lp = document.getElementById('listPanel'), cp = document.getElementById('cityPanel');
+    cp.classList.add('translate-x-full'); lp.classList.add('-translate-x-full');
+    if (currentPanel === 'train') { loadTrainList(); setTimeout(() => lp.classList.remove('-translate-x-full'), 100); showToast('高铁系统 · 4种真实车型'); }
+    else if (currentPanel === 'flight') { loadFlightList(); setTimeout(() => lp.classList.remove('-translate-x-full'), 100); showToast('航空航线 · 6大航司'); }
+    else flyToOverview(camera, controls);
+  });
+});
+
+async function loadTrainList() {
+  document.getElementById('listPanelTitle').textContent = '高铁线路';
+  const c = document.getElementById('listPanelItems');
+  c.innerHTML = '<div class="text-center text-slate-500 py-8 text-sm">加载中...</div>';
+  try {
+    const r = await fetch('/api/trains'), d = await r.json();
+    if (!d.success) return;
+    c.innerHTML = '';
+    d.data.slice(0, 30).forEach((t, i) => {
+      const tt = getTrainTypeForRoute(i), cfg = TRAIN_TYPES[tt], co = HSR_ROUTE_COLORS[i % HSR_ROUTE_COLORS.length];
+      const hx = '#' + new THREE.Color(co).getHexString();
+      c.innerHTML += `<div class="glass-card p-3"><div class="flex items-center gap-3"><div class="w-1 h-10 rounded-full" style="background:${hx}"></div><div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="text-xs px-1.5 py-0.5 rounded font-semibold" style="background:${hx}20;color:${hx}">${cfg.nickname}</span><span class="text-xs text-slate-400">${t.train_number||'G'+(1000+i)}</span></div><div class="flex items-center gap-1.5 mt-1"><span class="text-sm text-white font-medium">${t.departure_city||'出发'}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg><span class="text-sm text-white font-medium">${t.arrival_city||'到达'}</span></div></div><span class="text-xs text-qingtu-400 font-mono">${cfg.maxSpeed}km/h</span></div></div>`;
+    });
+  } catch (e) { c.innerHTML = '<div class="text-center text-slate-500 py-8 text-sm">加载失败</div>'; }
+}
+
+async function loadFlightList() {
+  document.getElementById('listPanelTitle').textContent = '航空航线';
+  const c = document.getElementById('listPanelItems');
+  c.innerHTML = '<div class="text-center text-slate-500 py-8 text-sm">加载中...</div>';
+  try {
+    const r = await fetch('/api/flights'), d = await r.json();
+    if (!d.success) return;
+    c.innerHTML = '';
+    d.data.slice(0, 30).forEach(f => {
+      c.innerHTML += `<div class="glass-card p-3"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></div><div class="flex-1 min-w-0"><div class="flex items-center gap-1.5"><span class="text-sm text-white font-medium">${f.departure_city||'出发'}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg><span class="text-sm text-white font-medium">${f.arrival_city||'到达'}</span></div><span class="text-xs text-slate-500">${f.airline||''} · ${f.flight_number||''} · ${f.aircraft_type||''}</span></div></div></div>`;
+    });
+  } catch (e) { c.innerHTML = '<div class="text-center text-slate-500 py-8 text-sm">加载失败</div>'; }
+}
+
+// 搜索
+const searchInput = document.getElementById('citySearch');
+const searchResults = document.getElementById('searchResults');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) { searchResults.classList.add('hidden'); return; }
+  const matches = (window.allCities||[]).filter(c => c.name.toLowerCase().includes(q) || (c.pinyin||'').toLowerCase().includes(q)).slice(0, 8);
+  searchResults.innerHTML = matches.length ? matches.map(c => `<div class="px-4 py-2 cursor-pointer hover:bg-slate-800/50 text-sm text-slate-300" data-city="${c.name}" data-lat="${c.latitude}" data-lng="${c.longitude}">${c.name}<span class="text-xs text-slate-500 ml-2">${c.province||''}</span></div>`).join('') : '<div class="px-4 py-2 text-sm text-slate-500">未找到匹配城市</div>';
+  searchResults.classList.remove('hidden');
+  searchResults.querySelectorAll('div[data-city]').forEach(el => { el.onclick = () => selectCity(el.dataset.city, parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)); });
+});
+
+document.addEventListener('click', e => { if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) searchResults.classList.add('hidden'); });
+
+function selectCity(name, lat, lng) {
+  searchInput.value = ''; searchResults.classList.add('hidden');
+  const cd = findCity(name);
+  if (!cd) { showToast('未找到城市: ' + name); return; }
+  flyToCity(camera, controls, { lat, lng }, name);
+};
+
+window.addEventListener('cityReached', async (e) => {
+  const { name } = e.detail, cd = findCity(name);
+  if (!cd) return;
+  selectedCity = cd;
+  const theme = getCityTheme(name);
+  document.getElementById('cityNameDisplay').textContent = name;
+  document.getElementById('cityDescDisplay').textContent = theme.desc || '';
+  document.getElementById('cityHeroBg').style.background = `linear-gradient(135deg,${theme.primary},${theme.accent})`;
+  document.getElementById('cityTags').innerHTML = (theme.tags||[]).map(t => `<span class="text-xs px-2 py-1 rounded-full bg-slate-800/70 text-slate-300 border border-slate-700/50">${t}</span>`).join('');
+  try {
+    const [at,f,h,g] = await Promise.all([
+      fetch(`/api/cities/${cd.id}/attractions`).then(r=>r.json()),
+      fetch(`/api/cities/${cd.id}/foods`).then(r=>r.json()),
+      fetch(`/api/cities/${cd.id}/hotels`).then(r=>r.json()),
+      fetch(`/api/cities/${cd.id}/guides`).then(r=>r.json())
+    ]);
+    document.getElementById('cityAttractionCount').textContent = at.data?.length || '-';
+    document.getElementById('cityFoodCount').textContent = f.data?.length || '-';
+    document.getElementById('cityHotelCount').textContent = h.data?.length || '-';
+    document.getElementById('cityGuideCount').textContent = g.data?.length || '-';
+  } catch (e) {}
+  document.getElementById('cityPanel').classList.remove('translate-x-full');
+});
+
+window.viewCityAttractions = () => { if (selectedCity) window.location.href = `/city.html?city=${encodeURIComponent(selectedCity.slug||selectedCity.name)}`; };
+window.viewCityFoods = () => { if (selectedCity) window.location.href = `/city.html?city=${encodeURIComponent(selectedCity.slug||selectedCity.name)}#foods`; };
+
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.opacity = '1'; setTimeout(() => t.style.opacity = '0', 2000); }
+
+renderer?.domElement?.addEventListener('click', (ev) => {
+  if (isDragging || currentPanel !== 'map') return;
+  const mouse = new THREE.Vector2((ev.clientX/window.innerWidth)*2-1, -(ev.clientY/window.innerHeight)*2+1);
+  const rc = new THREE.Raycaster(); rc.setFromCamera(mouse, camera);
+  const hits = rc.intersectObjects(cityMarkers, true);
+  if (hits.length) { let o = hits[0].object; while (o && !o.userData.city) o = o.parent; if (o?.userData?.city) { const c = o.userData.city; flyToCity(camera, controls, { lat: c.latitude, lng: c.longitude }, c.name); } }
+});
+
+document.addEventListener('keydown', (e) => {
+  switch (e.key.toLowerCase()) {
+    case 'r': flyToOverview(camera, controls); showToast('全局俯瞰'); break;
+    case '1': document.getElementById('navMap').click(); break;
+    case '2': document.getElementById('navTrain').click(); break;
+    case '3': document.getElementById('navFlight').click(); break;
+    case 'f': document.getElementById('citySearch').focus(); break;
+    case 'escape': document.getElementById('cityPanel').classList.add('translate-x-full'); document.getElementById('listPanel').classList.add('-translate-x-full'); selectedCity = null; break;
+  }
+});
+
+window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+// 关闭面板
+document.getElementById('closeCityPanel').addEventListener('click', () => { document.getElementById('cityPanel').classList.add('translate-x-full'); selectedCity = null; });
+document.getElementById('closeListPanel').addEventListener('click', () => { document.getElementById('listPanel').classList.add('-translate-x-full'); });
+
+// ==================== 启动 ====================
+(function waitForTHREE(cb) {
+  if (typeof THREE !== 'undefined' && THREE.Scene) return cb();
+  var waited = 0;
+  var iv = setInterval(function() {
+    if (typeof THREE !== 'undefined' && THREE.Scene) { clearInterval(iv); return cb(); }
+    waited += 50;
+    if (waited > 5000) { clearInterval(iv); console.error('THREE 加载超时'); cb(); }
+  }, 50);
+})(function() {
+if (typeof THREE === 'undefined') { console.error('THREE 未加载，使用降级模式'); document.getElementById('loadingScreen').classList.add('hidden'); document.getElementById('statsText').textContent = '3D引擎加载失败'; return; }
+initScene();
+(async function boot() {
+  try {
+    await createCityMarkers();
+    console.log('城市数据加载完成:', window.allCities?.length, '个城市');
+  } catch (e) {
+    console.error('城市加载失败:', e);
+    createFallbackMarkers();
+  }
+  try {
+    await Promise.all([createHSRLines(), createFlightRoutes()]);
+    console.log('线路数据加载完成');
+  } catch (e) {
+    console.error('线路加载失败:', e);
+  }
+  animate();
+  console.log('动画循环已启动');
+})();
+});
+</script>
+<script src="/js/mascot.js"></script>
+</body>
+</html>

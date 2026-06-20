@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高铁线路 - 晴途</title>
+  <link rel="stylesheet" href="css/mobile.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0e17;
+      color: #cbd5e1;
+    }
+    /* 顶部导航栏 */
+    .top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background: rgba(10,14,23,0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(249,115,22,0.2);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 100;
+    }
+    .top-bar .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #F97316;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .top-bar .back-btn:hover { background: rgba(249,115,22,0.12); }
+    .top-bar h1 {
+      flex: 1;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-right: 80px;
+    }
+    /* 主布局 */
+    .main-container {
+      display: flex;
+      height: 100vh;
+      padding-top: 56px;
+    }
+    /* 左侧线路列表 */
+    .route-list {
+      width: 30%;
+      min-width: 280px;
+      height: 100%;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(249,115,22,0.2) transparent;
+    }
+    .route-list::-webkit-scrollbar { width: 4px; }
+    .route-list::-webkit-scrollbar-thumb { background: rgba(249,115,22,0.2); border-radius: 4px; }
+    .route-card {
+      background: rgba(30,41,59,0.75);
+      backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      border: 1px solid rgba(249,115,22,0.15);
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .route-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: #F97316;
+      border-radius: 16px 16px 0 0;
+    }
+    .route-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(249,115,22,0.15);
+    }
+    .route-card.active {
+      border-color: #F97316;
+      box-shadow: 0 4px 16px rgba(249,115,22,0.2);
+      background: rgba(30,41,59,0.9);
+    }
+    .route-card.dimmed { opacity: 0.3; }
+    .route-card .route-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 6px;
+    }
+    .route-card .route-info {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .route-card .route-info span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .route-card .route-info .icon { font-size: 13px; }
+    /* 3D场景 */
+    #canvas-container {
+      flex: 1;
+      position: relative;
+    }
+    #canvas-container canvas { display: block; }
+    /* 加载状态 */
+    .loading-overlay {
+      position: fixed;
+      top: 56px; left: 0; right: 0; bottom: 0;
+      background: rgba(10,14,23,0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      transition: opacity 0.5s;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loading-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(249,115,22,0.2);
+      border-top-color: #F97316;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading-text { margin-top: 16px; color: #F97316; font-size: 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* 图例 */
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(30,41,59,0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(126,184,218,0.15);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div class="top-bar">
+  <a class="back-btn" href="index.html">
+    <span>←</span> 返回3D地图
+  </a>
+  <h1>🚄 高铁线路</h1>
+</div>
+
+<!-- 加载遮罩 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">正在加载城市坐标...</div>
+</div>
+
+<!-- 主容器 -->
+<div class="main-container">
+  <!-- 左侧线路列表 -->
+  
+<!-- 搜索栏 -->
+<div style="padding:12px 16px; background:rgba(30,41,59,0.6); backdrop-filter:blur(8px); border-bottom:1px solid rgba(249,115,22,0.1);">
+  <input type="text" id="routeSearch" placeholder="搜索高铁线路..." 
+    style="width:100%;padding:8px 14px;border:1.5px solid rgba(249,115,22,0.2);border-radius:12px;font-size:13px;outline:none;background:rgba(15,23,42,0.8);color:#cbd5e1;"
+    oninput="filterRoutes(this.value)">
+</div>
+<div class="route-list" id="routeList"></div>
+  <!-- 3D画布 -->
+  <div id="canvas-container"></div>
+</div>
+
+<!-- 图例 -->
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#F97316;"></div>
+    <span>高铁线路</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#34D399;"></div>
+    <span>高铁站点</span>
+  </div>
+</div>
+
+<!-- Three.js -->
+<script src="js/lib/three.min.js"></script>
+<script src="js/lib/OrbitControls.js"></script>
+
+<script>
+// ==================== 高铁数据 ====================
+const HIGH_SPEED_ROUTES = [
+  // ===== 主要干线（20条）=====
+  {name:"京沪高铁", cities:["北京","天津","济南","南京","上海"]},
+  {name:"京广高铁", cities:["北京","石家庄","郑州","武汉","长沙","广州","深圳"]},
+  {name:"沪昆高铁", cities:["上海","杭州","南昌","长沙","贵阳","昆明"]},
+  {name:"哈大高铁", cities:["哈尔滨","长春","沈阳","大连"]},
+  {name:"兰新高铁", cities:["兰州","西宁","乌鲁木齐"]},
+  {name:"徐新高铁", cities:["徐州","郑州","西安","兰州","乌鲁木齐"]},
+  {name:"沪汉高铁", cities:["上海","南京","武汉","重庆","成都"]},
+  {name:"沿海高铁", cities:["大连","天津","青岛","上海","杭州","福州","厦门","深圳","广州","海口"]},
+  {name:"郑西高铁", cities:["郑州","洛阳","西安"]},
+  {name:"哈齐高铁", cities:["哈尔滨","齐齐哈尔"]},
+  {name:"长吉高铁", cities:["长春","吉林"]},
+  {name:"长珲高铁", cities:["长春","延吉","珲春"]},
+  {name:"京张高铁", cities:["北京","张家口"]},
+  {name:"京呼高铁", cities:["北京","呼和浩特"]},
+  {name:"贵广高铁", cities:["贵阳","桂林","贺州","广州"]},
+  {name:"南广高铁", cities:["南宁","贵港","玉林","广州"]},
+  {name:"渝贵高铁", cities:["重庆","贵阳"]},
+  {name:"西成高铁", cities:["西安","汉中","成都"]},
+  {name:"成贵高铁", cities:["成都","乐山","贵阳"]},
+  {name:"杭黄高铁", cities:["杭州","黄山"]},
+  // ===== 新增城际线路（20条）=====
+  {name:"合宁高铁", cities:["合肥","南京"]},
+  {name:"福厦高铁", cities:["福州","泉州","厦门"]},
+  {name:"昌长高铁", cities:["南昌","长沙"]},
+   {name:"南昆高铁", cities:["南宁","百色","昆明"]},
+  {name:"贵昆高铁", cities:["贵阳","安顺","昆明"]},
+  {name:"郑石高铁", cities:["郑州","新乡","石家庄"]},
+  {name:"呼包高铁", cities:["呼和浩特","包头"]},
+  {name:"长哈高铁", cities:["长春","哈尔滨"]},
+  {name:"济青高铁", cities:["济南","青岛"]},
+  {name:"杭甬高铁", cities:["杭州","绍兴","宁波"]},
+  {name:"长广高铁", cities:["长沙","株洲","衡阳","广州"]},
+  {name:"合武高铁", cities:["合肥","武汉"]},
+  {name:"西兰高铁", cities:["西安","宝鸡","兰州"]},
+  {name:"渝成高铁", cities:["重庆","成都"]},
+  {name:"沈丹高铁", cities:["沈阳","本溪","丹东"]},
+  {name:"哈绥高铁", cities:["哈尔滨","绥芬河"]},
+  {name:"兰西高铁", cities:["兰州","西宁"]},
+  {name:"银兰高铁", cities:["银川","白银","兰州"]},
+  {name:"京津高铁", cities:["北京","天津"]},
+  {name:"沪苏高铁", cities:["上海","苏州","无锡","常州","镇江","南京"]}
+];
+
+
+// ===== 高铁搜索过滤 =====
+function filterRoutes(query) {
+  query = query.trim().toLowerCase();
+  const cards = document.querySelectorAll('.route-card');
+  cards.forEach(function(card) {
+    const name = card.dataset.name || '';
+    const cities = card.dataset.cities || '';
+    const match = !query || name.toLowerCase().includes(query) || cities.toLowerCase().includes(query);
+    card.style.display = match ? '' : 'none';
+  });
+}
+
+// ==================== 全局变量 ====================
+let scene, camera, renderer, controls;
+let cityCoords = {};
+let routeObjects = [];  // {line, stations, train, curve, progress, totalLength}
+let selectedRouteIndex = -1;
+let animationId;
+
+// ==================== 坐标转换 ====================
+function geoTo3D(lat, lng) {
+  return {
+    x: (lng - 105) * 1.8,
+    y: 0,
+    z: (36 - lat) * 1.8
+  };
+}
+
+function calcDistanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+            Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ==================== 初始化Three.js场景 ====================
+function initScene() {
+  const container = document.getElementById('canvas-container');
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0e17);
+  scene.fog = new THREE.FogExp2(0x0a0e17, 0.003);
+
+  camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 2000);
+  camera.position.set(0, 80, 120);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 20;
+  controls.maxDistance = 400;
+  controls.maxPolarAngle = Math.PI / 2.1;
+
+  // 光照
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(50, 100, 50);
+  scene.add(dirLight);
+
+  const pointLight = new THREE.PointLight(0xF97316, 0.2, 300);
+  pointLight.position.set(0, 50, 0);
+  scene.add(pointLight);
+
+  // 地面网格
+  const gridHelper = new THREE.GridHelper(600, 60, 0x2d1b00, 0x15283a);
+  gridHelper.position.y = -0.5;
+  scene.add(gridHelper);
+
+  window.addEventListener('resize', onResize);
+}
+
+function onResize() {
+  const container = document.getElementById('canvas-container');
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+// ==================== 加载城市坐标 ====================
+async function loadCities() {
+  try {
+    const resp = await fetch('/api/cities');
+    if (!resp.ok) throw new Error('API不可用');
+    const data = await resp.json();
+    const cities = Array.isArray(data) ? data : (data.data || data.cities || []);
+    cities.forEach(c => { cityCoords[c.name] = { lat: c.latitude, lng: c.longitude }; });
+    console.log(`加载了 ${Object.keys(cityCoords).length} 个城市坐标`);
+  } catch (e) {
+    console.warn('城市API加载失败，使用备用坐标:', e.message);
+    const fallbackCities = {
+      "北京": {lat:39.9, lng:116.4}, "上海": {lat:31.2, lng:121.5},
+      "广州": {lat:23.1, lng:113.3}, "深圳": {lat:22.5, lng:114.1},
+      "成都": {lat:30.6, lng:104.1}, "西安": {lat:34.3, lng:108.9},
+      "重庆": {lat:29.5, lng:106.5}, "昆明": {lat:25.0, lng:102.7},
+      "杭州": {lat:30.3, lng:120.2}, "南京": {lat:32.1, lng:118.8},
+      "厦门": {lat:24.5, lng:118.1}, "天津": {lat:39.1, lng:117.2},
+      "济南": {lat:36.6, lng:117.0}, "石家庄": {lat:38.0, lng:114.5},
+      "郑州": {lat:34.7, lng:113.6}, "武汉": {lat:30.6, lng:114.3},
+      "长沙": {lat:28.2, lng:112.9}, "南昌": {lat:28.7, lng:115.9},
+      "贵阳": {lat:26.6, lng:106.7}, "哈尔滨": {lat:45.8, lng:126.5},
+      "长春": {lat:43.9, lng:125.3}, "沈阳": {lat:41.8, lng:123.4},
+      "大连": {lat:38.9, lng:121.6}, "兰州": {lat:36.1, lng:103.8},
+      "西宁": {lat:36.6, lng:101.8}, "乌鲁木齐": {lat:43.8, lng:87.6},
+      "徐州": {lat:34.2, lng:117.2}, "青岛": {lat:36.1, lng:120.4},
+      "福州": {lat:26.1, lng:119.3}, "海口": {lat:20.0, lng:110.3},
+      "洛阳": {lat:34.6, lng:112.4}, "齐齐哈尔": {lat:47.4, lng:123.9},
+      "吉林": {lat:43.8, lng:126.5}, "延吉": {lat:42.9, lng:129.5},
+      "珲春": {lat:42.9, lng:130.4}, "张家口": {lat:40.8, lng:114.9},
+      "呼和浩特": {lat:40.8, lng:111.7}, "桂林": {lat:25.3, lng:110.3},
+      "贺州": {lat:24.4, lng:111.6}, "南宁": {lat:22.8, lng:108.3},
+      "贵港": {lat:23.1, lng:109.6}, "玉林": {lat:22.7, lng:110.2},
+      "汉中": {lat:33.0, lng:107.0}, "乐山": {lat:29.5, lng:103.8},
+      "黄山": {lat:29.7, lng:118.3}
+    };
+    Object.assign(cityCoords, fallbackCities);
+  }
+}
+
+// ==================== 创建城市标记 ====================
+function createCityMarkers() {
+  const group = new THREE.Group();
+  Object.entries(cityCoords).forEach(([name, coord]) => {
+    const pos = geoTo3D(coord.lat, coord.lng);
+    // 发光点
+    const geo = new THREE.SphereGeometry(0.5, 8, 8);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x34D399 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(pos.x, 0.2, pos.z);
+
+    // 光晕
+    const haloGeo = new THREE.SphereGeometry(1.2, 8, 8);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0x34D399, transparent: true, opacity: 0.2
+    });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.position.set(pos.x, 0.2, pos.z);
+    group.add(mesh);
+    group.add(halo);
+  });
+  scene.add(group);
+}
+
+// ==================== 创建高铁线路 ====================
+// 为多站点创建路径点（曲线路径）
+function buildLinePath(cities, heightFactor) {
+  const pts3D = [];
+  for (let i = 0; i < cities.length; i++) {
+    const coord = cityCoords[cities[i]];
+    if (!coord) continue;
+    const p = geoTo3D(coord.lat, coord.lng);
+    // 对于非端点，稍微抬升
+    let y = 0.5;
+    if (i > 0 && i < cities.length - 1) {
+      y = 1.5 + Math.random() * 0.5;
+    }
+    pts3D.push(new THREE.Vector3(p.x, y, p.z));
+  }
+  if (pts3D.length < 2) return null;
+
+  // 使用 CatmullRomCurve3 创建平滑曲线
+  const curve = new THREE.CatmullRomCurve3(pts3D, false, 'catmullrom', 0.5);
+  return curve;
+}
+
+// 创建站点标记（圆柱）
+function createStationMarker(pos) {
+  const group = new THREE.Group();
+  // 圆柱底座
+  const cylGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 12);
+  const cylMat = new THREE.MeshPhongMaterial({
+    color: 0x34D399,
+    emissive: 0x34D399,
+    emissiveIntensity: 0.3,
+    transparent: true,
+    opacity: 0.85
+  });
+  const cyl = new THREE.Mesh(cylGeo, cylMat);
+  cyl.position.y = 0.75;
+  group.add(cyl);
+  // 顶帽
+  const capGeo = new THREE.CylinderGeometry(0.9, 0.6, 0.4, 12);
+  const cap = new THREE.Mesh(capGeo, cylMat);
+  cap.position.y = 1.7;
+  group.add(cap);
+  group.position.set(pos.x, 0, pos.z);
+  return group;
+}
+
+// 创建高铁列车小球
+function createTrainBall() {
+  const group = new THREE.Group();
+  // 主体球
+  const ballGeo = new THREE.SphereGeometry(1.2, 16, 16);
+  const ballMat = new THREE.MeshPhongMaterial({
+    color: 0xF97316,
+    emissive: 0xF97316,
+    emissiveIntensity: 0.5
+  });
+  const ball = new THREE.Mesh(ballGeo, ballMat);
+  group.add(ball);
+  // 光晕
+  const haloGeo = new THREE.SphereGeometry(2.0, 16, 16);
+  const haloMat = new THREE.MeshBasicMaterial({
+    color: 0xF97316, transparent: true, opacity: 0.15
+  });
+  const halo = new THREE.Mesh(haloGeo, haloMat);
+  group.add(halo);
+  // 方向指示（锥形）
+  const coneGeo = new THREE.ConeGeometry(0.5, 1.2, 8);
+  const coneMat = new THREE.MeshPhongMaterial({ color: 0xFBBF24 });
+  const cone = new THREE.Mesh(coneGeo, coneMat);
+  cone.rotation.x = -Math.PI / 2;
+  cone.position.z = 1.5;
+  group.add(cone);
+  return group;
+}
+
+// ==================== 构建所有高铁线路 ====================
+function buildRoutes() {
+  HIGH_SPEED_ROUTES.forEach((route, index) => {
+    const curve = buildLinePath(route.cities, 0.1);
+    if (!curve) {
+      console.warn(`线路[${route.name}]无法构建，缺少城市坐标`);
+      return;
+    }
+
+    // 计算总长度
+    const totalLength = curve.getLength();
+
+    // 线路弧线
+    const pts = curve.getPoints(100);
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xF97316,
+      transparent: true,
+      opacity: 0.75,
+      linewidth: 2
+    });
+    const line = new THREE.Line(geo, mat);
+    scene.add(line);
+
+    // 站点标记
+    const stations = [];
+    route.cities.forEach(cityName => {
+      const coord = cityCoords[cityName];
+      if (!coord) return;
+      const pos = geoTo3D(coord.lat, coord.lng);
+      const marker = createStationMarker(new THREE.Vector3(pos.x, 0, pos.z));
+      scene.add(marker);
+      stations.push(marker);
+    });
+
+    // 列车
+    const train = createTrainBall();
+    scene.add(train);
+
+    routeObjects.push({
+      line, stations, train, curve, route,
+      progress: Math.random(),
+      totalLength,
+      index
+    });
+  });
+}
+
+// ==================== 创建左侧卡片列表 ====================
+function buildRouteList() {
+  const list = document.getElementById('routeList');
+  HIGH_SPEED_ROUTES.forEach((route, index) => {
+    const card = document.createElement('div');
+    card.className = 'route-card';
+    card.dataset.name = route.name;
+    card.dataset.cities = route.cities.join('→');
+    card.dataset.index = index;
+
+    // 计算估算全长（根据已知站点粗估）
+    const knownCities = route.cities.filter(c => cityCoords[c]).length;
+    const estKm = knownCities * 150; // 每站约150km
+
+    card.innerHTML = `
+      <div class="route-name">🚄 ${route.name}</div>
+      <div class="route-info">
+        <span><span class="icon">🏙️</span> ${route.cities.length} 站</span>
+        <span><span class="icon">📏</span> 约 ${estKm} km</span>
+      </div>
+    `;
+    card.addEventListener('click', () => onRouteCardClick(index));
+    list.appendChild(card);
+  });
+}
+
+// ==================== 线路卡片点击 ====================
+function onRouteCardClick(index) {
+  selectedRouteIndex = index;
+
+  document.querySelectorAll('.route-card').forEach((card, i) => {
+    if (i === index) {
+      card.classList.add('active');
+      card.classList.remove('dimmed');
+    } else {
+      card.classList.remove('active');
+      card.classList.add('dimmed');
+    }
+  });
+
+  const obj = routeObjects.find(r => r.index === index);
+  if (!obj) return;
+
+  // 获取曲线中点
+  const midT = 0.5;
+  const midPt = obj.curve.getPoint(midT);
+  const startPt = obj.curve.getPoint(0);
+  const endPt = obj.curve.getPoint(1);
+  const dir = new THREE.Vector3().subVectors(endPt, startPt).normalize();
+  const lookTarget = midPt.clone().add(dir.multiplyScalar(15));
+
+  animateCamera(
+    new THREE.Vector3(midPt.x, midPt.y + 50, midPt.z + 35),
+    lookTarget
+  );
+}
+
+// ==================== 相机动画 ====================
+let cameraAnim = null;
+function animateCamera(targetPos, lookAtPos) {
+  cameraAnim = {
+    startPos: camera.position.clone(),
+    startTarget: controls.target.clone(),
+    endPos: targetPos.clone(),
+    endTarget: lookAtPos.clone(),
+    startTime: performance.now(),
+    duration: 1200
+  };
+}
+
+function updateCameraAnim() {
+  if (!cameraAnim) return;
+  const elapsed = performance.now() - cameraAnim.startTime;
+  const t = Math.min(elapsed / cameraAnim.duration, 1);
+  const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+
+  camera.position.lerpVectors(cameraAnim.startPos, cameraAnim.endPos, ease);
+  controls.target.lerpVectors(cameraAnim.startTarget, cameraAnim.endTarget, ease);
+
+  if (t >= 1) cameraAnim = null;
+}
+
+// ==================== 高铁列车动画 ====================
+function updateTrains(delta) {
+  routeObjects.forEach(obj => {
+    const speed = (0.00006 + obj.totalLength * 0.00000004) * delta;
+    obj.progress = (obj.progress + speed) % 1;
+
+    const point = obj.curve.getPoint(obj.progress);
+    const tangent = obj.curve.getTangent(obj.progress);
+
+    obj.train.position.copy(point);
+    // 朝向运动方向
+    const up = new THREE.Vector3(0, 1, 0);
+    const axis = new THREE.Vector3(0, 0, 1).cross(tangent).normalize();
+    if (axis.length() > 0.001) {
+      const angle = Math.acos(new THREE.Vector3(0, 0, 1).dot(tangent));
+      obj.train.quaternion.setFromAxisAngle(axis, angle);
+    }
+  });
+}
+
+// ==================== 动画循环 ====================
+let lastTime = performance.now();
+function animate() {
+  animationId = requestAnimationFrame(animate);
+  const now = performance.now();
+  const delta = now - lastTime;
+  lastTime = now;
+
+  updateCameraAnim();
+  updateTrains(delta);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ==================== 启动 ====================
+async function main() {
+  initScene();
+  await loadCities();
+  createCityMarkers();
+  buildRoutes();
+  buildRouteList();
+
+  document.getElementById('loadingOverlay').classList.add('hidden');
+
+  animate();
+}
+
+main().catch(console.error);
+</script>
+</body>
+</html>

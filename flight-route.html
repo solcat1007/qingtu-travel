@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>航线导览 - 晴途</title>
+  <link rel="stylesheet" href="css/mobile.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0e17;
+      color: #cbd5e1;
+    }
+    /* 顶部导航栏 - Mac毛玻璃 */
+    .top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background: rgba(10,14,23,0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(126,184,218,0.15);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 100;
+      box-shadow: none;
+    }
+    .top-bar .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #7EB8DA;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .top-bar .back-btn:hover { background: rgba(126,184,218,0.1); }
+    .top-bar h1 {
+      flex: 1;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-right: 80px;
+    }
+    /* 主布局 */
+    .main-container {
+      display: flex;
+      height: 100vh;
+      padding-top: 56px;
+    }
+    /* 左侧航线列表 */
+    .route-list {
+      width: 30%;
+      min-width: 280px;
+      height: 100%;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(126,184,218,0.25) transparent;
+    }
+    .route-list::-webkit-scrollbar { width: 4px; }
+    .route-list::-webkit-scrollbar-thumb { background: rgba(126,184,218,0.25); border-radius: 4px; }
+    .route-card {
+      background: rgba(30,41,59,0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(126,184,218,0.1);
+      border-radius: 18px;
+      padding: 16px 18px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .route-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 18px 18px 0 0;
+    }
+    .route-card::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 16px; height: 16px;
+      clip-path: polygon(100% 0, 0 0, 100% 100%);
+      opacity: 0.3;
+    }
+    .route-card.domestic::before { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+    .route-card.domestic::after { background: #3B82F6; }
+    .route-card.international::before { background: linear-gradient(90deg, #F472B6, #F9A8D4); }
+    .route-card.international::after { background: #F472B6; }
+    .route-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(126,184,218,0.15);
+    }
+    .route-card.active {
+      border-color: #7EB8DA;
+      box-shadow: 0 4px 16px rgba(126,184,218,0.2);
+      background: rgba(30,41,59,0.9);
+    }
+    .route-card.international.active { border-color: #F472B6; }
+    .route-card.dimmed { opacity: 0.3; }
+    .route-card .route-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 6px;
+    }
+    .route-card .route-cities {
+      font-size: 13px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .route-card .route-cities .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #3B82F6;
+      flex-shrink: 0;
+    }
+    .route-card.international .route-cities .dot { background: #F472B6; }
+    .route-card .route-dist {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .route-card .type-tag {
+      position: absolute;
+      top: 14px; right: 12px;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .route-card.domestic .type-tag { background: rgba(59,130,246,0.15); color: #60A5FA; }
+    .route-card.international .type-tag { background: rgba(244,114,182,0.15); color: #F9A8D4; }
+    /* 3D场景 */
+    #canvas-container {
+      flex: 1;
+      position: relative;
+    }
+    #canvas-container canvas { display: block; }
+    /* 加载状态 */
+    .loading-overlay {
+      position: fixed;
+      top: 56px; left: 0; right: 0; bottom: 0;
+      background: rgba(10,14,23,0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      transition: opacity 0.5s;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loading-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(126,184,218,0.2);
+      border-top-color: #7EB8DA;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading-text { margin-top: 16px; color: #7EB8DA; font-size: 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* 图例 */
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(30,41,59,0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(126,184,218,0.15);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .legend-line { width: 24px; height: 3px; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div class="top-bar">
+  <a class="back-btn" href="index.html">
+    <span>←</span> 返回3D地图
+  </a>
+  <h1>🛫 航线导览</h1>
+</div>
+
+<!-- 加载遮罩 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">正在加载城市坐标...</div>
+</div>
+
+<!-- 主容器 -->
+<div class="main-container">
+  <!-- 左侧航线列表 -->
+  
+<!-- 搜索栏 -->
+<div style="padding:12px 16px; background:rgba(30,41,59,0.6); backdrop-filter:blur(8px); border-bottom:1px solid rgba(126,184,218,0.1);">
+  <input type="text" id="routeSearch" placeholder="搜索航线..." 
+    style="width:100%;padding:8px 14px;border:1.5px solid rgba(126,184,218,0.2);border-radius:12px;font-size:13px;outline:none;background:rgba(15,23,42,0.8);color:#cbd5e1;"
+    oninput="filterRoutes(this.value)">
+</div>
+<div class="route-list" id="routeList"></div>
+  <!-- 3D画布 -->
+  <div id="canvas-container"></div>
+</div>
+
+<!-- 图例 -->
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-line" style="background:#3B82F6;"></div>
+    <span>国内航线</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#F472B6;"></div>
+    <span>国际航线</span>
+  </div>
+</div>
+
+<!-- Three.js -->
+<script src="js/lib/three.min.js"></script>
+<script src="js/lib/OrbitControls.js"></script>
+
+<script>
+// ==================== 航线数据 ====================
+const FLIGHT_ROUTES = [
+  // ===== 国内航线（35条）=====
+  {name:"京沪线", from:"北京", to:"上海", type:"domestic"},
+  {name:"京广线", from:"北京", to:"广州", type:"domestic"},
+  {name:"京深线", from:"北京", to:"深圳", type:"domestic"},
+  {name:"京成线", from:"北京", to:"成都", type:"domestic"},
+  {name:"京西线", from:"北京", to:"西安", type:"domestic"},
+  {name:"京渝线", from:"北京", to:"重庆", type:"domestic"},
+  {name:"京昆线", from:"北京", to:"昆明", type:"domestic"},
+  {name:"京杭线", from:"北京", to:"杭州", type:"domestic"},
+  {name:"京南线", from:"北京", to:"南京", type:"domestic"},
+  {name:"沪广线", from:"上海", to:"广州", type:"domestic"},
+  {name:"沪深线", from:"上海", to:"深圳", type:"domestic"},
+  {name:"沪成线", from:"上海", to:"成都", type:"domestic"},
+  {name:"沪渝线", from:"上海", to:"重庆", type:"domestic"},
+  {name:"沪昆线", from:"上海", to:"昆明", type:"domestic"},
+  {name:"沪杭线", from:"上海", to:"杭州", type:"domestic"},
+  {name:"沪南线", from:"上海", to:"南京", type:"domestic"},
+  {name:"沪厦线", from:"上海", to:"厦门", type:"domestic"},
+  {name:"广深线", from:"广州", to:"深圳", type:"domestic"},
+  {name:"广成线", from:"广州", to:"成都", type:"domestic"},
+  {name:"广杭线", from:"广州", to:"杭州", type:"domestic"},
+  {name:"广宁线", from:"广州", to:"南京", type:"domestic"},
+  {name:"广厦线", from:"广州", to:"厦门", type:"domestic"},
+  {name:"广昆线", from:"广州", to:"昆明", type:"domestic"},
+  {name:"广重线", from:"广州", to:"重庆", type:"domestic"},
+  {name:"深成线", from:"深圳", to:"成都", type:"domestic"},
+  {name:"深渝线", from:"深圳", to:"重庆", type:"domestic"},
+  {name:"深杭线", from:"深圳", to:"杭州", type:"domestic"},
+  {name:"深昆线", from:"深圳", to:"昆明", type:"domestic"},
+  {name:"杭西线", from:"杭州", to:"西安", type:"domestic"},
+  {name:"杭渝线", from:"杭州", to:"重庆", type:"domestic"},
+  {name:"成昆线", from:"成都", to:"昆明", type:"domestic"},
+  {name:"成拉线", from:"成都", to:"拉萨", type:"domestic"},
+  {name:"渝昆线", from:"重庆", to:"昆明", type:"domestic"},
+  {name:"西兰线", from:"西安", to:"兰州", type:"domestic"},
+  {name:"武汉-广州", from:"武汉", to:"广州", type:"domestic"},
+  // ===== 国际航线（25条）=====
+  {name:"北京-东京", from:"北京", to:"东京", type:"international"},
+  {name:"北京-首尔", from:"北京", to:"首尔", type:"international"},
+  {name:"北京-巴黎", from:"北京", to:"巴黎", type:"international"},
+  {name:"北京-伦敦", from:"北京", to:"伦敦", type:"international"},
+  {name:"北京-纽约", from:"北京", to:"纽约", type:"international"},
+  {name:"北京-莫斯科", from:"北京", to:"莫斯科", type:"international"},
+  {name:"北京-悉尼", from:"北京", to:"悉尼", type:"international"},
+  {name:"北京-迪拜", from:"北京", to:"迪拜", type:"international"},
+  {name:"北京-新加坡", from:"北京", to:"新加坡", type:"international"},
+  {name:"北京-香港", from:"北京", to:"香港", type:"international"},
+  {name:"上海-东京", from:"上海", to:"东京", type:"international"},
+  {name:"上海-大阪", from:"上海", to:"大阪", type:"international"},
+  {name:"上海-首尔", from:"上海", to:"首尔", type:"international"},
+  {name:"上海-台北", from:"上海", to:"台北", type:"international"},
+  {name:"上海-纽约", from:"上海", to:"纽约", type:"international"},
+  {name:"上海-伦敦", from:"上海", to:"伦敦", type:"international"},
+  {name:"广州-东京", from:"广州", to:"东京", type:"international"},
+  {name:"广州-曼谷", from:"广州", to:"曼谷", type:"international"},
+  {name:"广州-悉尼", from:"广州", to:"悉尼", type:"international"},
+  {name:"广州-吉隆坡", from:"广州", to:"吉隆坡", type:"international"},
+  {name:"广州-迪拜", from:"广州", to:"迪拜", type:"international"},
+  {name:"深圳-新加坡", from:"深圳", to:"新加坡", type:"international"},
+  {name:"深圳-东京", from:"深圳", to:"东京", type:"international"},
+  {name:"成都-东京", from:"成都", to:"东京", type:"international"},
+  {name:"成都-新加坡", from:"成都", to:"新加坡", type:"international"}
+];
+
+
+// ===== 航线搜索过滤 =====
+function filterRoutes(query) {
+  query = query.trim().toLowerCase();
+  const cards = document.querySelectorAll('.route-card');
+  cards.forEach(function(card) {
+    const name = card.dataset.name || '';
+    const from = card.dataset.from || '';
+    const to = card.dataset.to || '';
+    const match = !query || name.toLowerCase().includes(query) || from.toLowerCase().includes(query) || to.toLowerCase().includes(query);
+    card.style.display = match ? '' : 'none';
+  });
+}
+
+// ==================== 全局变量 ====================
+let scene, camera, renderer, controls;
+let cityCoords = {};        // 城市名 -> {lat, lng}
+let routeObjects = [];     // {line, plane, route, progress}
+let selectedRouteIndex = -1;
+let cityMeshes = {};       // 城市 -> Three.js Mesh
+let animationId;
+
+// ==================== 坐标转换 ====================
+function geoTo3D(lat, lng) {
+  return {
+    x: (lng - 105) * 1.8,
+    y: 0,
+    z: (36 - lat) * 1.8
+  };
+}
+
+// 根据经纬度估算两点间距离（公里）
+function calcDistanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+            Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ==================== 初始化Three.js场景 ====================
+function initScene() {
+  const container = document.getElementById('canvas-container');
+
+  // 场景
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0e17);
+  scene.fog = new THREE.FogExp2(0x0a0e17, 0.003);
+
+  // 相机
+  camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 2000);
+  camera.position.set(0, 80, 120);
+
+  // 渲染器
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  // 控制器
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 20;
+  controls.maxDistance = 400;
+  controls.maxPolarAngle = Math.PI / 2.1;
+
+  // 光照
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(50, 100, 50);
+  scene.add(dirLight);
+
+  const pointLight = new THREE.PointLight(0x7EB8DA, 0.3, 300);
+  pointLight.position.set(0, 50, 0);
+  scene.add(pointLight);
+
+  // 地面网格
+  const gridHelper = new THREE.GridHelper(600, 60, 0x1e3a5f, 0x15283a);
+  gridHelper.position.y = -0.5;
+  scene.add(gridHelper);
+
+  // 窗口调整
+  window.addEventListener('resize', onResize);
+}
+
+function onResize() {
+  const container = document.getElementById('canvas-container');
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+// ==================== 加载城市坐标 ====================
+async function loadCities() {
+  try {
+    const resp = await fetch('/api/cities');
+    if (!resp.ok) throw new Error('API不可用');
+    const data = await resp.json();
+    const cities = Array.isArray(data) ? data : (data.data || data.cities || []);
+    cities.forEach(c => { cityCoords[c.name] = { lat: c.latitude, lng: c.longitude }; });
+    console.log(`加载了 ${Object.keys(cityCoords).length} 个城市坐标`);
+  } catch (e) {
+    console.warn('城市API加载失败，使用备用坐标:', e.message);
+    // 备用城市坐标（hardcode主要城市）
+    const fallbackCities = {
+      "北京": {lat:39.9, lng:116.4}, "上海": {lat:31.2, lng:121.5},
+      "广州": {lat:23.1, lng:113.3}, "深圳": {lat:22.5, lng:114.1},
+      "成都": {lat:30.6, lng:104.1}, "西安": {lat:34.3, lng:108.9},
+      "重庆": {lat:29.5, lng:106.5}, "昆明": {lat:25.0, lng:102.7},
+      "杭州": {lat:30.3, lng:120.2}, "南京": {lat:32.1, lng:118.8},
+      "厦门": {lat:24.5, lng:118.1}, "拉萨": {lat:29.7, lng:91.1},
+      "东京": {lat:35.7, lng:139.7}, "大阪": {lat:34.7, lng:135.5},
+      "曼谷": {lat:13.8, lng:100.5}, "新加坡": {lat:1.4, lng:103.8},
+      "加德满都": {lat:27.7, lng:85.3}, "首尔": {lat:37.6, lng:127.0},
+      "台北": {lat:25.0, lng:121.6}, "吉隆坡": {lat:3.1, lng:101.7},
+      "曼德勒": {lat:21.9, lng:96.1}
+    };
+    Object.assign(cityCoords, fallbackCities);
+  }
+}
+
+// ==================== 创建城市标记 ====================
+function createCityMarkers() {
+  const group = new THREE.Group();
+  Object.entries(cityCoords).forEach(([name, coord]) => {
+    const pos = geoTo3D(coord.lat, coord.lng);
+    // 发光点
+    const geo = new THREE.SphereGeometry(0.5, 8, 8);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x3B82F6 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(pos.x, 0.2, pos.z);
+    mesh.userData = { cityName: name };
+
+    // 光晕
+    const haloGeo = new THREE.SphereGeometry(1.2, 8, 8);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0x3B82F6, transparent: true, opacity: 0.2
+    });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.position.set(pos.x, 0.2, pos.z);
+    group.add(mesh);
+    group.add(halo);
+    cityMeshes[name] = mesh;
+  });
+  scene.add(group);
+}
+
+// ==================== 创建航线弧线 ====================
+function createArcCurve(fromCoord, toCoord, heightFactor) {
+  const p1 = geoTo3D(fromCoord.lat, fromCoord.lng);
+  const p2 = geoTo3D(toCoord.lat, toCoord.lng);
+  const dist = calcDistanceKm(fromCoord.lat, fromCoord.lng, toCoord.lat, toCoord.lng);
+  const arcHeight = dist * heightFactor * 0.001; // 高度缩放
+
+  // 大圆弧中间点（提升高度）
+  const midX = (p1.x + p2.x) / 2;
+  const midZ = (p1.z + p2.z) / 2;
+  const dist3D = Math.sqrt((p2.x-p1.x)**2 + (p2.z-p1.z)**2);
+  const midY = arcHeight + dist3D * 0.1;
+
+  const curve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(p1.x, p1.y + 0.5, p1.z),
+    new THREE.Vector3(midX, midY, midZ),
+    new THREE.Vector3(p2.x, p2.y + 0.5, p2.z)
+  );
+  return { curve, dist };
+}
+
+// 飞机模型（简化版）
+function createPlaneMesh(color) {
+  const group = new THREE.Group();
+  // 机身
+  const bodyGeo = new THREE.ConeGeometry(0.3, 1.4, 6);
+  const bodyMat = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.3 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.rotation.x = Math.PI / 2;
+  group.add(body);
+  // 机翼
+  const wingGeo = new THREE.BoxGeometry(2.2, 0.1, 0.5);
+  const wingMat = new THREE.MeshPhongMaterial({ color: 0x94A3B8 });
+  const wing = new THREE.Mesh(wingGeo, wingMat);
+  wing.position.z = 0.2;
+  group.add(wing);
+  // 尾翼
+  const tailGeo = new THREE.BoxGeometry(0.6, 0.6, 0.08);
+  const tail = new THREE.Mesh(tailGeo, wingMat);
+  tail.position.z = -0.5;
+  group.add(tail);
+  return group;
+}
+
+// ==================== 构建所有航线 ====================
+function buildRoutes() {
+  FLIGHT_ROUTES.forEach((route, index) => {
+    const fromCoord = cityCoords[route.from];
+    const toCoord = cityCoords[route.to];
+    if (!fromCoord || !toCoord) {
+      console.warn(`航线[${route.name}]缺少城市坐标: ${route.from}=${!!fromCoord}, ${route.to}=${!!toCoord}`);
+      return;
+    }
+
+    const { curve, dist } = createArcCurve(fromCoord, toCoord, 0.2);
+    const color = route.type === 'international' ? 0xF472B6 : 0x3B82F6;
+    const arcHeight = dist * 0.2 * 0.001;
+
+    // 弧线
+    const points = curve.getPoints(60);
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.7,
+      linewidth: 2
+    });
+    const line = new THREE.Line(geo, mat);
+    scene.add(line);
+
+    // 飞机
+    const plane = createPlaneMesh(color);
+    scene.add(plane);
+
+    // 存储
+    routeObjects.push({
+      line, plane, curve, route, dist,
+      progress: Math.random(), // 随机起始位置
+      arcHeight,
+      color,
+      index
+    });
+  });
+}
+
+// ==================== 创建左侧卡片列表 ====================
+function buildRouteList() {
+  const list = document.getElementById('routeList');
+  FLIGHT_ROUTES.forEach((route, index) => {
+    const fromCoord = cityCoords[route.from];
+    const toCoord = cityCoords[route.to];
+    let distStr = '—';
+    if (fromCoord && toCoord) {
+      const d = calcDistanceKm(fromCoord.lat, fromCoord.lng, toCoord.lat, toCoord.lng);
+      distStr = `约 ${Math.round(d)} km`;
+    }
+
+    const card = document.createElement('div');
+    card.className = `route-card ${route.type}`;
+    card.dataset.index = index;
+    card.innerHTML = `
+      <div class="route-name">${route.name}</div>
+      <div class="route-cities">
+        <span class="dot"></span>
+        ${route.from} → ${route.to}
+      </div>
+      <div class="route-dist">${distStr}</div>
+      <div class="type-tag">${route.type === 'international' ? '国际' : '国内'}</div>
+    `;
+    card.addEventListener('click', () => onRouteCardClick(index));
+    list.appendChild(card);
+  });
+}
+
+// ==================== 航线卡片点击 ====================
+function onRouteCardClick(index) {
+  const prev = selectedRouteIndex;
+  selectedRouteIndex = index;
+
+  // 更新卡片高亮
+  document.querySelectorAll('.route-card').forEach((card, i) => {
+    if (i === index) {
+      card.classList.add('active');
+      card.classList.remove('dimmed');
+    } else {
+      card.classList.remove('active');
+      card.classList.add('dimmed');
+    }
+  });
+
+  // 相机飞到该航线正上方
+  const obj = routeObjects.find(r => r.index === index);
+  if (!obj) return;
+
+  const pts = obj.curve.getPoints(100);
+  const midPt = pts[Math.floor(pts.length / 2)];
+
+  // 计算航线朝向
+  const startPt = pts[0];
+  const endPt = pts[pts.length - 1];
+  const dir = new THREE.Vector3().subVectors(endPt, startPt).normalize();
+  const lookTarget = midPt.clone().add(dir.multiplyScalar(20));
+
+  // 平滑相机动画
+  animateCamera(
+    new THREE.Vector3(midPt.x, midPt.y + 60, midPt.z + 40),
+    lookTarget
+  );
+}
+
+// ==================== 相机平滑动画 ====================
+let cameraAnim = null;
+function animateCamera(targetPos, lookAtPos) {
+  cameraAnim = {
+    startPos: camera.position.clone(),
+    startTarget: controls.target.clone(),
+    endPos: targetPos.clone(),
+    endTarget: lookAtPos.clone(),
+    startTime: performance.now(),
+    duration: 1200
+  };
+}
+
+function updateCameraAnim() {
+  if (!cameraAnim) return;
+  const elapsed = performance.now() - cameraAnim.startTime;
+  const t = Math.min(elapsed / cameraAnim.duration, 1);
+  const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; // easeInOutCubic
+
+  camera.position.lerpVectors(cameraAnim.startPos, cameraAnim.endPos, ease);
+  controls.target.lerpVectors(cameraAnim.startTarget, cameraAnim.endTarget, ease);
+
+  if (t >= 1) cameraAnim = null;
+}
+
+// ==================== 飞机动画更新 ====================
+function updatePlanes(delta) {
+  routeObjects.forEach(obj => {
+    // 速度：距离越远越快（但有个范围）
+    const speed = (0.00008 + obj.dist * 0.00000008) * delta;
+    obj.progress = (obj.progress + speed) % 1;
+
+    const point = obj.curve.getPoint(obj.progress);
+    const tangent = obj.curve.getTangent(obj.progress);
+
+    obj.plane.position.copy(point);
+    // 使飞机朝向飞行方向
+    obj.plane.lookAt(point.clone().add(tangent));
+  });
+}
+
+// ==================== 动画循环 ====================
+let lastTime = performance.now();
+function animate() {
+  animationId = requestAnimationFrame(animate);
+  const now = performance.now();
+  const delta = now - lastTime;
+  lastTime = now;
+
+  updateCameraAnim();
+  updatePlanes(delta);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ==================== 启动 ====================
+async function main() {
+  initScene();
+  await loadCities();
+  createCityMarkers();
+  buildRoutes();
+  buildRouteList();
+
+  // 隐藏加载
+  document.getElementById('loadingOverlay').classList.add('hidden');
+
+  animate();
+}
+
+main().catch(console.error);
+</script>
+</body>
+</html>

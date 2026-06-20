@@ -1,0 +1,25 @@
+{
+  "name": "travel-website",
+  "version": "1.0.0",
+  "description": "全国公交地铁景区旅游网站",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init-db": "node scripts/init-db.js",
+    "fetch-data": "node scripts/fetch-data.js",
+    "cron-daily": "node scripts/cron-daily.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "node-fetch": "^2.7.0",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "canvas": "^3.2.3",
+    "puppeteer": "^24.42.0",
+    "puppeteer-core": "^24.42.0",
+    "screenshot-desktop": "^1.15.4"
+  }
+}
