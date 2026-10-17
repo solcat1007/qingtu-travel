@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>晴途 QingTu - 景点详情</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{qingtu:{50:'#F0F7FC',100:'#DBECF7',200:'#B8D9F0',300:'#7EB8DA',400:'#5A9BCB',500:'#3D7DB5',600:'#2C5F8A',700:'#244A6E',800:'#1D3A56',900:'#15283A'}}}}};</script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;background:#0a0e17;color:#cbd5e1;}
+  .glass-card{background:rgba(30,41,59,0.75);backdrop-filter:blur(12px);border:1px solid rgba(126,184,218,0.1);border-radius:12px;}
+  .glass-panel{background:rgba(10,14,23,0.88);backdrop-filter:blur(20px);border:1px solid rgba(126,184,218,0.15);border-radius:16px;}
+  #viewer3d{width:100%;height:500px;border-radius:16px;overflow:hidden;}
+  .wf-btn{padding:6px 16px;border-radius:20px;font-size:12px;border:1px solid rgba(126,184,218,0.3);background:rgba(30,41,59,0.5);color:#94a3b8;cursor:pointer;transition:all 0.2s;}
+  .wf-btn.active{background:rgba(126,184,218,0.2);border-color:#7EB8DA;color:#7EB8DA;}
+  .loading-spinner{width:24px;height:24px;border:2px solid rgba(126,184,218,0.2);border-top-color:#7EB8DA;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .animate-in{animation:fadeIn 0.35s ease-out;}
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:rgba(126,184,218,0.2);border-radius:2px;}
+</style>
+</head>
+<body class="min-h-screen">
+<nav class="fixed top-0 left-0 right-0 z-50 border-b border-slate-800/50" style="background:rgba(10,14,23,0.92);backdrop-filter:blur(16px);">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 hover:opacity-80"><h1 class="text-xl font-extrabold bg-gradient-to-r from-qingtu-300 to-qingtu-500 bg-clip-text text-transparent" style="font-family:'Alimama ShuHeiTi','Noto Serif SC',serif;">晴途</h1></a>
+    <a id="backToCity" href="index.html" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-slate-800/50">返回</a>
+  </div>
+</nav>
+<main class="pt-14">
+
+<!-- 无 ID 时的列表模式 -->
+<div id="listMode" class="max-w-7xl mx-auto px-6 py-6 hidden">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-black text-white" style="font-family:'Alimama ShuHeiTi','Noto Serif SC',serif;">热门景点</h2>
+    <input type="text" id="attractionSearch" placeholder="搜索景点..." class="bg-slate-800/70 text-slate-200 text-sm px-3 py-1.5 rounded-full border border-slate-700/50 w-48 focus:w-64 transition-all duration-300 outline-none focus:border-qingtu-400/50 placeholder:text-slate-500">
+  </div>
+  <div id="listContent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="text-center py-12 text-slate-500 col-span-full"><div class="loading-spinner mb-3"></div>加载景点列表...</div>
+  </div>
+</div>
+
+<!-- 有 ID 时的详情模式 -->
+<div id="detailMode" class="hidden">
+  <div class="max-w-7xl mx-auto px-6 py-6">
+    <div class="flex flex-col lg:flex-row gap-6">
+      <div class="lg:w-7/12">
+        <div class="flex items-center justify-between mb-4">
+          <h2 id="attractionName" class="text-3xl font-black text-white" style="font-family:'Alimama ShuHeiTi','Noto Serif SC',serif;"></h2>
+          <button id="wireframeToggle" class="wf-btn" onclick="toggleWireframeMode()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>线稿模式</button>
+        </div>
+        <div id="viewer3d" class="glass-card"></div>
+        <div id="attractionStats" class="grid grid-cols-3 gap-3 mt-4"></div>
+      </div>
+      <div class="lg:w-5/12">
+        <div class="glass-card p-5 mb-4"><h3 class="text-lg font-bold text-white mb-3">基本信息</h3><div id="infoGrid" class="grid grid-cols-2 gap-3 text-sm"></div></div>
+        <div class="glass-card p-5 mb-4"><h3 class="text-lg font-bold text-white mb-3">介绍</h3><p id="attractionDesc" class="text-sm text-slate-400 leading-relaxed"></p></div>
+        <div class="glass-card p-5"><h3 class="text-lg font-bold text-white mb-3">交通指南</h3><p id="attractionAddress" class="text-sm text-slate-400"></p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 加载状态 -->
+<div id="loadingMode" class="max-w-7xl mx-auto px-6 py-24 flex flex-col items-center justify-center gap-4">
+  <div class="loading-spinner"></div>
+  <p class="text-sm text-slate-400">加载景点数据...</p>
+</div>
+
+</main>
+
+<script src="js/modules/city-data.js"></script>
+<script src="js/modules/attraction-3d.js"></script>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let scene,camera,renderer,controls,currentModel=null,isWireframe=false;
+let allAttractions = [];
+const params=new URLSearchParams(window.location.search);
+const attractionId=params.get('id')||params.get('attraction');
+const cityParam = params.get('city')||'';
+
+function showLoading(){document.getElementById('loadingMode').classList.remove('hidden');}
+function hideLoading(){document.getElementById('loadingMode').classList.add('hidden');}
+
+// 列表模式：无 ID 时展示全部热门景点
+async function loadListMode() {
+  document.getElementById('listMode').classList.remove('hidden');
+  document.getElementById('detailMode').classList.add('hidden');
+  hideLoading();
+  const ct = document.getElementById('listContent');
+  try {
+    const resp = await fetch('/api/attractions?limit=60');
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error);
+    allAttractions = data.data||[];
+    renderAttractionList(allAttractions);
+  } catch(e) {
+    ct.innerHTML = `<div class="text-center py-12 text-red-400 col-span-full">加载失败: ${e.message}</div>`;
+  }
+}
+
+function renderAttractionList(items) {
+  const ct = document.getElementById('listContent');
+  if (!items.length) { ct.innerHTML = '<div class="text-center py-12 text-slate-500 col-span-full">暂无景点数据</div>'; return; }
+  ct.innerHTML = items.map((a,i) => {
+    const slug = a.city_slug||encodeURIComponent(a.city_name||'');
+    return `
+    <div class="glass-card p-4 cursor-pointer hover:bg-slate-700/30 transition-colors animate-in" style="animation-delay:${i*0.02}s" onclick="location.href='attraction.html?id=${a.id}&city=${slug}'">
+      <div class="flex items-start gap-3">
+        <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:rgba(126,184,218,0.15);color:#7EB8DA;">
+          ${a.rating||'N/A'}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="text-white font-semibold text-sm">${a.name}</h3>
+          <p class="text-xs text-slate-500 mt-0.5">${a.city_name||''} · ${a.category||''}</p>
+          <p class="text-xs text-slate-400 mt-1 line-clamp-2">${a.description||''}</p>
+        </div>
+        <svg class="w-4 h-4 text-slate-600 flex-shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 搜索
+document.getElementById('attractionSearch').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  const filtered = q ? allAttractions.filter(a =>
+    (a.name||'').toLowerCase().includes(q)||
+    (a.city_name||'').toLowerCase().includes(q)||
+    (a.category||'').toLowerCase().includes(q)
+  ) : allAttractions;
+  renderAttractionList(filtered);
+});
+
+// 详情模式：有 ID 时展示景点详情 + 3D 查看器
+async function loadDetailMode(){
+  if(!attractionId){loadListMode();return;}
+  document.getElementById('detailMode').classList.remove('hidden');
+  try{
+    const resp=await fetch(`/api/attractions/${attractionId}`);
+    const data=await resp.json();
+    if(!data.success)throw new Error(data.error);
+    const a=data.data;
+    document.title=`晴途 · ${a.name}`;
+    document.getElementById('attractionName').textContent=a.name;
+    document.getElementById('attractionDesc').textContent=a.description||'暂无详细介绍';
+    document.getElementById('attractionAddress').textContent=a.address||'暂无地址信息';
+    document.getElementById('infoGrid').innerHTML=`
+      <div><span class="text-slate-500">分类</span><br><span class="text-slate-200">${a.category||'未知'}</span></div>
+      <div><span class="text-slate-500">评分</span><br><span class="text-amber-400 font-bold">${a.rating||'N/A'}</span></div>
+      <div><span class="text-slate-500">门票</span><br><span class="text-slate-200">${a.ticket_price?a.ticket_price+'元':'免费'}</span></div>
+      <div><span class="text-slate-500">开放时间</span><br><span class="text-slate-200">${a.open_time||'以景区公告为准'}</span></div>`;
+    document.getElementById('attractionStats').innerHTML=`
+      <div class="glass-card p-3 text-center"><div class="text-xl font-bold text-qingtu-300">${a.review_count||'-'}</div><div class="text-xs text-slate-500">条评价</div></div>
+      <div class="glass-card p-3 text-center"><div class="text-xl font-bold text-amber-400">${a.rating||'N/A'}</div><div class="text-xs text-slate-500">综合评分</div></div>
+      <div class="glass-card p-3 text-center"><div class="text-xl font-bold text-emerald-400">${a.like_count||'-'}</div><div class="text-xs text-slate-500">人想去</div></div>`;
+    // 返回链接：优先回城市页，其次回列表
+    const backSlug = cityParam || a.city_slug || '';
+    document.getElementById('backToCity').href = backSlug ? `city.html?city=${encodeURIComponent(backSlug)}` : 'attraction.html';
+    document.getElementById('backToCity').textContent = backSlug ? `← ${a.city_name||'返回'}` : '← 景点列表';
+    hideLoading();
+    init3DViewer(a);
+  }catch(e){
+    hideLoading();
+    document.getElementById('detailMode').classList.remove('hidden');
+    document.getElementById('attractionName').textContent='加载失败';
+    document.getElementById('attractionDesc').textContent=e.message;
+  }
+}
+
+function init3DViewer(a){
+  const container=document.getElementById('viewer3d');
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+  renderer.setSize(container.clientWidth,container.clientHeight);
+  container.appendChild(renderer.domElement);
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x0f172a);
+  scene.fog=new THREE.Fog(0x0f172a,5,25);
+  scene.add(new THREE.AmbientLight(0x334466,0.8));
+  scene.add(new THREE.HemisphereLight(0x7788aa,0x223344,0.6));
+  const dl=new THREE.DirectionalLight(0xffeedd,1.2);
+  dl.position.set(5,8,5);
+  scene.add(dl);
+  const fl=new THREE.DirectionalLight(0x4466aa,0.3);
+  fl.position.set(-3,2,-3);scene.add(fl);
+  const grid=new THREE.GridHelper(6,20,0x334466,0x1a2a3a);
+  grid.position.y=-0.05;scene.add(grid);
+  camera=new THREE.PerspectiveCamera(50,container.clientWidth/container.clientHeight,0.1,40);
+  camera.position.set(4,3.5,7);camera.lookAt(0,1.5,0);
+  controls=new OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true;controls.dampingFactor=0.08;
+  controls.target.set(0,1.5,0);controls.minDistance=2;controls.maxDistance=15;
+  controls.autoRotate=true;controls.autoRotateSpeed=0.5;controls.update();
+
+  const modelType=getAttractionModelType(a.category);
+  const theme=getCityTheme(a.city_name||'');
+  currentModel=createAttractionModel(modelType,{primary:theme.primary||'#7EB8DA',accent:theme.accent||'#B8D9F0'});
+  currentModel.position.set(0,1.5,0);
+  scene.add(currentModel);
+
+  const lc=document.createElement('canvas');lc.width=256;lc.height=64;
+  const ctx=lc.getContext('2d');
+  ctx.fillStyle='rgba(15,23,42,0.85)';ctx.beginPath();ctx.roundRect(0,0,256,64,12);ctx.fill();
+  ctx.fillStyle='#ffffff';ctx.font='bold 18px "Noto Sans SC","PingFang SC","Microsoft YaHei"';ctx.textAlign='center';ctx.fillText(a.name,128,30);
+  ctx.fillStyle='#7EB8DA';ctx.font='13px "Noto Sans SC","PingFang SC","Microsoft YaHei"';ctx.fillText(a.category||'',128,50);
+  const lt=new THREE.CanvasTexture(lc);
+  const lp=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.4),new THREE.MeshBasicMaterial({map:lt,transparent:true,depthWrite:false}));
+  lp.position.set(0,3.5,0);lp.name='label';currentModel.add(lp);
+
+  window.addEventListener('resize',()=>{
+    camera.aspect=container.clientWidth/container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth,container.clientHeight);
+  });
+  animate();
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  if(currentModel){
+    const lb=currentModel.getObjectByName('label');
+    if(lb)lb.lookAt(new THREE.Vector3(camera.position.x,lb.position.y,camera.position.z));
+  }
+  if(renderer&&scene&&camera)renderer.render(scene,camera);
+}
+
+window.toggleWireframeMode=function(){
+  if(!currentModel)return;
+  isWireframe=!isWireframe;
+  toggleWireframe(currentModel,isWireframe);
+  const btn=document.getElementById('wireframeToggle');
+  if(isWireframe){btn.classList.add('active');btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>线稿(开)';}
+  else{btn.classList.remove('active');btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>线稿模式';}
+};
+
+loadDetailMode();
+</script>
+</body>
+</html>

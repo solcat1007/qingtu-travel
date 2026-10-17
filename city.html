@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>晴途 QingTu - 城市详情</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        qingtu: { 50: '#F0F7FC', 100: '#DBECF7', 200: '#B8D9F0', 300: '#7EB8DA', 400: '#5A9BCB', 500: '#3D7DB5', 600: '#2C5F8A', 700: '#244A6E', 800: '#1D3A56', 900: '#15283A' },
+      },
+      fontFamily: {
+        sans: ['"Noto Sans SC"','"PingFang SC"','"Microsoft YaHei"', 'sans-serif'],
+        display: ['"Alimama ShuHeiTi"','"Noto Serif SC"', 'serif'],
+      },
+    },
+  },
+};
+</script>
+<style>
+  * { margin:0;padding:0;box-sizing:border-box; }
+  body { font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; background:#0a0e17; color:#cbd5e1; }
+  .glass-panel { background:rgba(10,14,23,0.88); backdrop-filter:blur(20px); border:1px solid rgba(126,184,218,0.15); border-radius:16px; }
+  .glass-card { background:rgba(30,41,59,0.75); backdrop-filter:blur(12px); border:1px solid rgba(126,184,218,0.1); border-radius:12px; }
+  .tab-btn { padding:8px 20px; cursor:pointer; border:none; background:transparent; color:rgba(148,163,184,0.8); font-family:inherit; font-size:14px; font-weight:500; border-bottom:2px solid transparent; transition:all 0.25s; }
+  .tab-btn:hover { color:#e2e8f0; }
+  .tab-btn.active { color:#7EB8DA; border-bottom-color:#7EB8DA; }
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(126,184,218,0.25); border-radius:2px; }
+  #attraction3dView { width:100%; height:400px; border-radius:12px; overflow:hidden; }
+  .wireframe-btn { padding:6px 16px; border-radius:20px; font-size:12px; border:1px solid rgba(126,184,218,0.3); background:rgba(30,41,59,0.5); color:#94a3b8; cursor:pointer; transition:all 0.2s; }
+  .wireframe-btn.active { background:rgba(126,184,218,0.2); border-color:#7EB8DA; color:#7EB8DA; }
+  .loading-spinner { width:24px; height:24px; border:2px solid rgba(126,184,218,0.2); border-top-color:#7EB8DA; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .animate-in { animation: fadeIn 0.35s ease-out; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<nav class="fixed top-0 left-0 right-0 z-50 border-b border-slate-800/50" style="background:rgba(10,14,23,0.92); backdrop-filter:blur(16px);">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 hover:opacity-80">
+      <h1 class="text-xl font-extrabold bg-gradient-to-r from-qingtu-300 to-qingtu-500 bg-clip-text text-transparent font-display">晴途</h1>
+    </a>
+    <a href="index.html" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-slate-800/50 flex items-center gap-1">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10"/></svg>
+      3D地图
+    </a>
+  </div>
+</nav>
+
+<main class="pt-14">
+  <!-- 加载状态 -->
+  <div id="loadingState" class="max-w-7xl mx-auto px-6 py-24 flex flex-col items-center justify-center gap-4">
+    <div class="loading-spinner"></div>
+    <p class="text-sm text-slate-400">加载城市数据...</p>
+  </div>
+
+  <!-- Hero 区域 -->
+  <section id="cityHero" class="relative overflow-hidden hidden" style="min-height:260px;">
+    <div class="absolute inset-0" id="heroGradient" style="background:linear-gradient(135deg,#1e3a5f,#15283a);"></div>
+    <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 30% 50%, rgba(126,184,218,0.5) 0%,transparent 50%),radial-gradient(circle at 70% 30%, rgba(232,168,124,0.4) 0%,transparent 50%);"></div>
+    <div class="relative max-w-7xl mx-auto px-6 py-12">
+      <a href="index.html" class="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white mb-6">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        返回3D地图
+      </a>
+      <h2 id="cityName" class="text-4xl md:text-5xl font-black text-white font-display mb-3"></h2>
+      <p id="cityDesc" class="text-lg text-slate-300 max-w-2xl mb-4"></p>
+      <div id="cityTags" class="flex flex-wrap gap-2 mb-5"></div>
+      <div class="grid grid-cols-4 gap-3 max-w-lg">
+        <div class="bg-white/5 rounded-xl p-3 text-center"><div id="heroAttractions" class="text-2xl font-bold text-qingtu-300">-</div><div class="text-xs text-slate-500 mt-1">景点</div></div>
+        <div class="bg-white/5 rounded-xl p-3 text-center"><div id="heroFoods" class="text-2xl font-bold text-amber-400">-</div><div class="text-xs text-slate-500 mt-1">美食</div></div>
+        <div class="bg-white/5 rounded-xl p-3 text-center"><div id="heroHotels" class="text-2xl font-bold text-emerald-400">-</div><div class="text-xs text-slate-500 mt-1">酒店</div></div>
+        <div class="bg-white/5 rounded-xl p-3 text-center"><div id="heroGuides" class="text-2xl font-bold text-purple-400">-</div><div class="text-xs text-slate-500 mt-1">攻略</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 标签页导航 -->
+  <div id="tabNav" class="sticky top-14 z-40 border-b border-slate-800/50 hidden" style="background:rgba(10,14,23,0.95); backdrop-filter:blur(16px);">
+    <div class="max-w-7xl mx-auto px-6 flex gap-2">
+      <button class="tab-btn active" data-tab="attractions">景点</button>
+      <button class="tab-btn" data-tab="foods">美食</button>
+      <button class="tab-btn" data-tab="hotels">酒店</button>
+      <button class="tab-btn" data-tab="guides">攻略</button>
+    </div>
+  </div>
+
+  <div id="attraction3dSection" class="max-w-7xl mx-auto px-6 py-6 hidden">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold text-white" id="currentAttractionName">景点3D预览</h3>
+      <button id="wireframeToggle" class="wireframe-btn" onclick="toggleCurrentWireframe()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        线稿模式
+      </button>
+    </div>
+    <div id="attraction3dView" class="glass-card"></div>
+    <p id="currentAttractionDesc" class="text-sm text-slate-400 mt-3"></p>
+  </div>
+
+  <div id="contentArea" class="max-w-7xl mx-auto px-6 py-4 pb-20"></div>
+</main>
+
+<footer class="text-center py-8 border-t border-slate-800/30"><p class="text-xs text-slate-600">晴途 QingTu · 二次元文旅 · 192城全景</p></footer>
+
+<div id="detailModal" class="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4" onclick="closeDetailModal(event)">
+  <div class="glass-panel w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="modalTitle" class="text-xl font-bold text-white"></h3>
+      <button onclick="closeDetailModal()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="js/modules/city-data.js"></script>
+<script src="js/modules/attraction-3d.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let currentCity = null, attractionScene, attractionCamera, attractionRenderer, attractionControls, currentModel = null, isWireframe = false;
+const params = new URLSearchParams(window.location.search);
+const cityParam = params.get('city') || params.get('cityId') || params.get('id');
+const hashTab = window.location.hash.replace('#','') || 'attractions';
+
+async function loadCity() {
+  if (!cityParam) {
+    document.getElementById('loadingState').innerHTML = '<p class="text-slate-400">未指定城市参数。请从<a href="index.html" class="text-qingtu-300 hover:underline">3D地图</a>选择城市。</p>';
+    return;
+  }
+  try {
+    const resp = await fetch(`/api/cities/${encodeURIComponent(cityParam)}`);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || '城市不存在');
+    currentCity = data.data;
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('cityHero').classList.remove('hidden');
+    document.getElementById('tabNav').classList.remove('hidden');
+    renderCityHero();
+    loadTabData(hashTab);
+    if (hashTab === 'attractions') {
+      document.getElementById('attraction3dSection').classList.remove('hidden');
+      loadAttraction3D();
+    }
+  } catch(e) {
+    document.getElementById('loadingState').innerHTML = `<p class="text-red-400">加载失败: ${e.message}</p><a href="index.html" class="text-qingtu-300 text-sm hover:underline mt-2 inline-block">返回3D地图</a>`;
+  }
+}
+
+function renderCityHero() {
+  const c = currentCity;
+  document.getElementById('cityName').textContent = c.name;
+  document.getElementById('cityDesc').textContent = c.description || '';
+  document.title = `晴途 · ${c.name}`;
+  const theme = getCityTheme(c.name);
+  document.getElementById('heroGradient').style.background = `linear-gradient(135deg,${theme.primary},${theme.accent||'#15283a'})`;
+  document.getElementById('cityTags').innerHTML = (theme.tags||[]).map(t =>
+    `<span class="text-xs px-2 py-1 rounded-full bg-white/10 text-white/80 border border-white/10">${t}</span>`
+  ).join('');
+  document.getElementById('heroAttractions').textContent = c.attractionCount || '-';
+  document.getElementById('heroFoods').textContent = c.foodCount || '-';
+  document.getElementById('heroHotels').textContent = c.hotelCount || '-';
+  document.getElementById('heroGuides').textContent = c.guideCount || '-';
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadTabData(btn.dataset.tab);
+    if (btn.dataset.tab === 'attractions') {
+      document.getElementById('attraction3dSection').classList.remove('hidden');
+      loadAttraction3D();
+    } else {
+      document.getElementById('attraction3dSection').classList.add('hidden');
+    }
+  });
+});
+
+const initTab = document.querySelector(`[data-tab="${hashTab}"]`) || document.querySelector('[data-tab="attractions"]');
+if (initTab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  initTab.classList.add('active');
+  if (hashTab !== 'attractions') document.getElementById('attraction3dSection').classList.add('hidden');
+}
+
+async function loadTabData(tab) {
+  const area = document.getElementById('contentArea');
+  area.innerHTML = '<div class="text-center py-12"><div class="loading-spinner mx-auto mb-3"></div><div class="text-sm text-slate-500">加载中...</div></div>';
+  try {
+    const resp = await fetch(`/api/cities/${currentCity.id}/${tab}`);
+    const data = await resp.json();
+    if (!data.success) { area.innerHTML = '<div class="text-center py-12 text-slate-500">暂无数据</div>'; return; }
+    const items = data.data || [];
+    if (tab === 'attractions') renderAttractions(items);
+    else if (tab === 'foods') renderFoods(items);
+    else if (tab === 'hotels') renderHotels(items);
+    else if (tab === 'guides') renderGuides(items);
+    else renderSimpleList(items, '暂无数据');
+  } catch(e) { area.innerHTML = `<div class="text-center py-12 text-slate-500">加载失败: ${e.message}</div>`; }
+}
+
+function renderAttractions(items) {
+  const area = document.getElementById('contentArea');
+  const citySlug = currentCity.slug || encodeURIComponent(currentCity.name);
+  area.innerHTML = items.length ? items.map((a, i) => `
+    <div class="glass-card p-4 mb-3 animate-in" style="animation-delay:${i*0.03}s">
+      <div class="flex items-start gap-4">
+        <div class="w-14 h-14 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:${getCityTheme(currentCity.name).primary}20;color:${getCityTheme(currentCity.name).primary};">
+          ${a.rating||'N/A'}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h4 class="text-white font-semibold">
+            <a href="attraction.html?id=${a.id}&city=${encodeURIComponent(citySlug)}" class="hover:text-qingtu-300 transition-colors">${a.name}</a>
+          </h4>
+          <p class="text-xs text-slate-400 mt-1 line-clamp-2">${a.description||''}</p>
+          <div class="flex items-center gap-3 mt-2">
+            <span class="text-xs text-slate-500">${a.category||''}</span>
+            ${a.ticket_price ? `<span class="text-xs text-amber-400">${a.ticket_price}元</span>` : '<span class="text-xs text-emerald-400">免费</span>'}
+            <span class="text-xs text-slate-600">${a.open_time||''}</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <a href="attraction.html?id=${a.id}&city=${encodeURIComponent(citySlug)}" class="text-xs text-qingtu-400 hover:text-qingtu-300 px-2 py-1 rounded-full bg-qingtu-500/10 hover:bg-qingtu-500/20 transition-colors">详情</a>
+          <button class="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 rounded-full bg-slate-700/30 hover:bg-slate-700/50 transition-colors" onclick="event.stopPropagation();showAttraction3D(${i})">3D预览</button>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="text-center py-12 text-slate-500">暂无景点数据</div>';
+  window._attractionList = items;
+}
+
+function renderFoods(items) {
+  const area = document.getElementById('contentArea');
+  const categories = {};
+  items.forEach(f => { const cat = f.category || '其他'; if (!categories[cat]) categories[cat] = []; categories[cat].push(f); });
+  area.innerHTML = Object.keys(categories).length ? Object.entries(categories).map(([cat, list]) => `
+    <div class="mb-4">
+      <h4 class="text-sm font-semibold text-amber-400 mb-2 px-1">${cat}</h4>
+      ${list.map(f => `
+        <div class="glass-card p-4 mb-2 animate-in">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <h5 class="text-white font-medium">${f.name}</h5>
+              <p class="text-xs text-slate-400 mt-1">${f.description||''}</p>
+              ${f.recommend_shop ? `<p class="text-xs text-slate-500 mt-1">推荐: ${f.recommend_shop}</p>` : ''}
+            </div>
+            ${f.price_range ? `<span class="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full whitespace-nowrap ml-2">${f.price_range}</span>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('') : '<div class="text-center py-12 text-slate-500">暂无美食数据</div>';
+}
+
+function renderSimpleList(items, emptyMsg) {
+  document.getElementById('contentArea').innerHTML = items.length ? items.map(item => `
+    <div class="glass-card p-4 mb-3 animate-in">
+      <h4 class="text-white font-semibold">${item.name}</h4>
+      <p class="text-xs text-slate-400 mt-1">${item.description||''}</p>
+      <div class="flex items-center gap-2 mt-2">
+        ${item.category ? `<span class="text-xs px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400">${item.category}</span>` : ''}
+        ${item.price_range ? `<span class="text-xs text-slate-500">${item.price_range}</span>` : ''}
+      </div>
+    </div>`).join('') : `<div class="text-center py-12 text-slate-500">${emptyMsg}</div>`;
+}
+
+function renderHotels(items) {
+  document.getElementById('contentArea').innerHTML = items.length ? items.map(h => `
+    <div class="glass-card p-4 mb-3 animate-in">
+      <div class="flex items-start justify-between">
+        <div class="flex-1">
+          <h4 class="text-white font-semibold">${h.name}</h4>
+          <div class="flex items-center gap-1 mt-1">${'★'.repeat(Math.min(h.stars||0,5))}${'☆'.repeat(Math.max(0,5-(h.stars||0)))}<span class="text-xs text-slate-500 ml-1">${h.stars||0}星级</span></div>
+          <p class="text-xs text-slate-400 mt-1">${h.address||''} ${h.phone||''}</p>
+        </div>
+        <div class="text-right"><div class="text-lg font-bold text-emerald-400">${h.price||'-'}</div><div class="text-xs text-slate-500">元/晚</div></div>
+      </div>
+    </div>`).join('') : '<div class="text-center py-12 text-slate-500">暂无酒店数据</div>';
+}
+
+function renderGuides(items) {
+  document.getElementById('contentArea').innerHTML = items.length ? items.map(g => `
+    <div class="glass-card p-4 mb-3 cursor-pointer hover:bg-slate-700/30 animate-in" onclick="window.showGuideDetail('${(g.title||'').replace(/'/g,"\\'")}','${(g.content||'').replace(/'/g,"\\'").replace(/\n/g,'<br>')}','${g.duration||'?'}')">
+      <h4 class="text-white font-semibold">${g.title}</h4>
+      <div class="flex items-center gap-2 mt-1.5">
+        <span class="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">${g.duration||'?'}天</span>
+        <span class="text-xs text-slate-500">${g.season||''}</span>
+        <span class="text-xs text-slate-500">${g.budget||''}</span>
+      </div>
+    </div>`).join('') : '<div class="text-center py-12 text-slate-500">暂无攻略数据</div>';
+}
+
+// 3D 预览
+function initAttractionViewer() {
+  const container = document.getElementById('attraction3dView');
+  if (!container || attractionRenderer) return;
+  attractionRenderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  attractionRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  attractionRenderer.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(attractionRenderer.domElement);
+  attractionScene = new THREE.Scene();
+  attractionScene.background = new THREE.Color(0x0f172a);
+  attractionScene.add(new THREE.AmbientLight(0x334466, 0.8));
+  attractionScene.add(new THREE.HemisphereLight(0x7788aa, 0x223344, 0.6));
+  const dl = new THREE.DirectionalLight(0xffeedd, 1.2);
+  dl.position.set(5, 8, 5);
+  attractionScene.add(dl);
+  attractionCamera = new THREE.PerspectiveCamera(50, container.clientWidth/container.clientHeight, 0.1, 30);
+  attractionCamera.position.set(4, 3, 6); attractionCamera.lookAt(0, 1.5, 0);
+  attractionControls = new OrbitControls(attractionCamera, attractionRenderer.domElement);
+  attractionControls.enableDamping = true; attractionControls.dampingFactor = 0.08;
+  attractionControls.target.set(0, 1.5, 0); attractionControls.minDistance = 2; attractionControls.maxDistance = 12;
+  attractionControls.autoRotate = true; attractionControls.autoRotateSpeed = 0.6; attractionControls.update();
+  window.addEventListener('resize', () => {
+    const c2 = document.getElementById('attraction3dView');
+    if (!c2 || !attractionRenderer) return;
+    attractionCamera.aspect = c2.clientWidth / c2.clientHeight;
+    attractionCamera.updateProjectionMatrix();
+    attractionRenderer.setSize(c2.clientWidth, c2.clientHeight);
+  });
+  animateAttractionViewer();
+}
+
+function animateAttractionViewer() {
+  requestAnimationFrame(animateAttractionViewer);
+  if (attractionControls) attractionControls.update();
+  if (attractionRenderer && attractionScene && attractionCamera) attractionRenderer.render(attractionScene, attractionCamera);
+}
+
+async function loadAttraction3D() {
+  if (!currentCity) return;
+  try {
+    const resp = await fetch(`/api/cities/${currentCity.id}/attractions`);
+    const data = await resp.json();
+    if (!data.success || !data.data?.length) return;
+    window._attractionList = data.data;
+    if (!attractionScene) initAttractionViewer();
+    showAttraction3D(0);
+  } catch(e) {}
+}
+
+window.showAttraction3D = function(idx) {
+  const list = window._attractionList;
+  if (!list || !list[idx]) return;
+  const a = list[idx];
+  if (!attractionScene) initAttractionViewer();
+  const modelType = getAttractionModelType(a.category);
+  const theme = getCityTheme(currentCity.name);
+  if (currentModel) attractionScene.remove(currentModel);
+  const model = createAttractionModel(modelType, { primary: theme.primary, accent: theme.accent });
+  model.position.set(0, 1.5, 0);
+  currentModel = model;
+  attractionScene.add(model);
+  document.getElementById('currentAttractionName').textContent = a.name;
+  document.getElementById('currentAttractionDesc').textContent = a.description || '';
+  document.getElementById('wireframeToggle').classList.remove('active');
+  isWireframe = false;
+  document.getElementById('attraction3dSection').classList.remove('hidden');
+};
+
+window.toggleCurrentWireframe = function() {
+  if (!currentModel) return;
+  isWireframe = !isWireframe;
+  toggleWireframe(currentModel, isWireframe);
+  const btn = document.getElementById('wireframeToggle');
+  if (isWireframe) { btn.classList.add('active'); btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>线稿(开)'; }
+  else { btn.classList.remove('active'); btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>线稿模式'; }
+};
+
+window.showGuideDetail = function(title, content, duration) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = `<div class="text-xs text-slate-400 mb-4">${duration}天行程</div><div class="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">${content}</div>`;
+  document.getElementById('detailModal').classList.remove('hidden');
+};
+
+window.closeDetailModal = function(e) {
+  if (e && e.target !== document.getElementById('detailModal')) return;
+  document.getElementById('detailModal').classList.add('hidden');
+};
+
+loadCity();
+</script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+/* ========================================
+   晴途 - 移动端响应式样式
+   断点: 1024px (平板) / 768px (手机) / 480px (小屏)
+   ======================================== */
+
+/* ====== 平板 (≤1024px) ====== */
+@media (max-width: 1024px) {
+  .main-container,
+  .container {
+    padding: 80px 16px 40px !important;
+    max-width: 100% !important;
+  }
+
+  /* 导航栏紧凑 */
+  .navbar,
+  nav {
+    padding: 12px 20px !important;
+  }
+  .navbar-brand,
+  .nav-brand {
+    font-size: 1.3em !important;
+  }
+
+  /* 卡片网格调整为2列 */
+  .attractions-grid,
+  .hotels-list,
+  .grid-container,
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  /* 统计卡片 */
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 12px !important;
+  }
+  .stat-card {
+    padding: 14px 10px !important;
+    border-radius: 16px !important;
+  }
+  .stat-card .value {
+    font-size: 1.5em !important;
+  }
+  .stat-card .icon {
+    font-size: 1.8em !important;
+    margin-bottom: 6px !important;
+  }
+  .stat-card .label {
+    font-size: 0.85em !important;
+  }
+
+  /* 标签页 */
+  .tabs {
+    gap: 6px !important;
+    padding: 6px !important;
+    flex-wrap: wrap !important;
+  }
+  .tab {
+    padding: 10px 16px !important;
+    font-size: 0.9em !important;
+    border-radius: 12px !important;
+  }
+
+  /* 3D画布 */
+  .canvas-container {
+    height: 300px !important;
+  }
+
+  /* 城市照片 */
+  .city-photo {
+    height: 180px !important;
+    max-width: 100% !important;
+  }
+
+  /* 头部 */
+  .city-header h1,
+  .page-header h1 {
+    font-size: 2em !important;
+  }
+}
+
+/* ====== 手机 (≤768px) ====== */
+@media (max-width: 768px) {
+  .main-container,
+  .container {
+    padding: 70px 12px 30px !important;
+  }
+
+  /* 汉堡菜单导航 */
+  .navbar,
+  nav {
+    padding: 10px 14px !important;
+    flex-wrap: wrap !important;
+  }
+  .navbar-brand,
+  .nav-brand {
+    font-size: 1.1em !important;
+  }
+  .navbar nav,
+  .nav-links {
+    display: none !important;
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding-top: 10px !important;
+  }
+  .navbar nav.active,
+  .nav-links.active {
+    display: flex !important;
+  }
+  .navbar nav a,
+  .nav-links a {
+    padding: 10px 14px !important;
+    font-size: 0.95em !important;
+    text-align: center !important;
+    border-radius: 10px !important;
+    background: rgba(126, 184, 218, 0.08) !important;
+  }
+
+  /* 汉堡按钮 */
+  .hamburger-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 8px !important;
+  }
+  .hamburger-btn span {
+    display: block !important;
+    width: 24px !important;
+    height: 2.5px !important;
+    background: #5a9bc7 !important;
+    border-radius: 2px !important;
+    transition: all 0.3s ease !important;
+  }
+
+  /* 卡片单列 */
+  .attractions-grid,
+  .hotels-list,
+  .grid-container,
+  .card-grid,
+  .flight-list,
+  .train-list {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  /* 统计卡片4列 */
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+  }
+  .stat-card {
+    padding: 12px 6px !important;
+    border-radius: 14px !important;
+  }
+  .stat-card .value {
+    font-size: 1.3em !important;
+  }
+  .stat-card .icon {
+    font-size: 1.5em !important;
+    margin-bottom: 4px !important;
+  }
+  .stat-card .label {
+    font-size: 0.75em !important;
+  }
+
+  /* 头部 */
+  .city-header h1,
+  .page-header h1 {
+    font-size: 1.7em !important;
+  }
+  .city-header .description,
+  .page-header .description {
+    font-size: 0.95em !important;
+    padding: 14px !important;
+  }
+
+  /* 标签页 */
+  .tabs {
+    gap: 4px !important;
+    padding: 4px !important;
+    border-radius: 14px !important;
+  }
+  .tab {
+    padding: 8px 12px !important;
+    font-size: 0.8em !important;
+    border-radius: 10px !important;
+  }
+
+  /* 3D画布 */
+  .canvas-container {
+    height: 260px !important;
+  }
+
+  /* 城市照片 */
+  .city-photo {
+    height: 150px !important;
+  }
+
+  /* 按钮 */
+  .navbar-back,
+  .btn {
+    padding: 8px 14px !important;
+    font-size: 0.85em !important;
+  }
+
+  /* 交通信息页面 */
+  .route-card,
+  .flight-card,
+  .train-card {
+    padding: 14px !important;
+  }
+
+  /* 隐藏桌面端元素 */
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* ====== 小屏手机 (≤480px) ====== */
+@media (max-width: 480px) {
+  .main-container,
+  .container {
+    padding: 65px 8px 24px !important;
+  }
+
+  .navbar,
+  nav {
+    padding: 8px 10px !important;
+  }
+  .navbar-brand,
+  .nav-brand {
+    font-size: 1em !important;
+  }
+
+  /* 统计卡片3列 */
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  .stat-card {
+    padding: 8px 4px !important;
+    border-radius: 12px !important;
+  }
+  .stat-card .value {
+    font-size: 1.1em !important;
+  }
+  .stat-card .icon {
+    font-size: 1.2em !important;
+    margin-bottom: 2px !important;
+  }
+  .stat-card .label {
+    font-size: 0.7em !important;
+  }
+
+  /* 标签更紧凑 */
+  .tabs {
+    gap: 3px !important;
+    padding: 3px !important;
+    border-radius: 10px !important;
+  }
+  .tab {
+    padding: 6px 8px !important;
+    font-size: 0.7em !important;
+    border-radius: 8px !important;
+  }
+
+  .city-header h1,
+  .page-header h1 {
+    font-size: 1.3em !important;
+  }
+
+  .city-photo {
+    height: 120px !important;
+  }
+
+  .canvas-container {
+    height: 220px !important;
+  }
+
+  .attraction-card,
+  .hotel-card,
+  .route-card {
+    padding: 12px !important;
+  }
+  .attraction-card h3,
+  .hotel-card h3 {
+    font-size: 1em !important;
+  }
+
+  /* 按钮 */
+  .navbar-back,
+  .btn {
+    padding: 6px 12px !important;
+    font-size: 0.8em !important;
+    border-radius: 15px !important;
+  }
+}
+
+/* ====== 汉堡按钮默认隐藏 ====== */
+.hamburger-btn {
+  display: none;
+}
+
+/* ====== 三维地图移动端降级 ====== */
+@media (max-width: 768px) {
+  #three-container,
+  .three-canvas {
+    height: 350px !important;
+  }
+  .map-controls {
+    bottom: 10px !important;
+    right: 10px !important;
+  }
+  .info-panel {
+    width: 90% !important;
+    left: 5% !important;
+    top: 70px !important;
+    font-size: 0.85em !important;
+    padding: 12px !important;
+  }
+}
+
+/* ====== 通用触摸优化 ====== */
+@media (hover: none) and (pointer: coarse) {
+  /* 增大触摸目标 */
+  .tab, button, .btn, a.nav-link {
+    min-height: 40px !important;
+    min-width: 40px !important;
+  }
+
+  /* 取消hover效果 */
+  .attraction-card:hover,
+  .stat-card:hover,
+  .hotel-card:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(126, 184, 218, 0.12) !important;
+  }
+}
+
+/* ====== 通用排版适配 ====== */
+@media (max-width: 1024px) {
+  body {
+    font-size: 15px !important;
+  }
+  h1 { font-size: 1.8em !important; }
+  h2 { font-size: 1.4em !important; }
+  h3 { font-size: 1.2em !important; }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px !important;
+  }
+  h1 { font-size: 1.6em !important; }
+  h2 { font-size: 1.3em !important; }
+}
+
+/* ====== 建筑线稿调整 ====== */
+@media (max-width: 768px) {
+  .building-sketch-bg {
+    opacity: 0.15 !important;
+    transform: scale(0.7) !important;
+  }
+}
