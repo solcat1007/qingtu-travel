@@ -1,3 +1,4 @@
+const { DB_PATH, LOG_DIR } = require('./scripts/config');
 /**
  * 晴途 - Express服务器 (sql.js版)
  * 所有数据从本地SQLite读取，用户访问时零API调用
@@ -10,7 +11,6 @@ const initSqlJs = require('sql.js');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const DB_PATH = path.join('G:', '旅游网站项目', '数据库', 'travel.db');
 
 let db;
 

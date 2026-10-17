@@ -1,3 +1,4 @@
+const { DB_PATH, LOG_DIR } = require('./config');
 /**
  * SQLite数据库初始化脚本
  * 全国公交地铁景区旅游网站 - 数据库建表
@@ -6,10 +7,8 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const DB_DIR = path.join('G:', '旅游网站项目', '数据库');
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
-const DB_PATH = path.join(DB_DIR, 'travel.db');
 console.log('数据库路径:', DB_PATH);
 
 const db = new Database(DB_PATH);

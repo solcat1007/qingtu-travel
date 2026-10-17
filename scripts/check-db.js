@@ -1,3 +1,4 @@
+const { DB_PATH, LOG_DIR } = require('./config');
 const Database = require('better-sqlite3');
 const db = new Database('G:/旅游网站项目/数据库/travel.db');
 

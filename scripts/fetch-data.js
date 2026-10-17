@@ -1,3 +1,4 @@
+const { DB_PATH, LOG_DIR } = require('./config');
 /**
  * NVIDIA NIM API 数据采集脚本
  * 采集公交/地铁/景区核心数据，写入本地SQLite
@@ -11,8 +12,6 @@ const fs = require('fs');
 // ========== 配置 ==========
 const API_KEY = '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';
 const NIM_BASE = 'https://integrate.api.nvidia.com/v1';
-const DB_PATH = path.join('G:', '旅游网站项目', '数据库', 'travel.db');
-const LOG_DIR = path.join('G:', '旅游网站项目', '日志文件', 'API调用日志');
 
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
