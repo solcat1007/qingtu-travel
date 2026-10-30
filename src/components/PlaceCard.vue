@@ -1,7 +1,7 @@
 <template>
   <router-link :to="`/place/${p.slug}`" class="card">
     <div class="ph">
-      <img v-if="!bad" :src="`/img/${p.slug}-cover.jpg`" loading="lazy" @error="bad = true" alt="">
+      <img v-if="!bad" :src="`/img/${p.slug}-cover.jpg?v=4`" loading="lazy" @error="bad = true" alt="">
       <div v-else class="em">{{ p.emoji || p.flag }}</div>
     </div>
     <div class="bd">
@@ -9,7 +9,7 @@
       <div class="sub">{{ p.country ? `${p.flag} ${p.country}` : p.province }} · {{ p.tag }}</div>
       <div class="tags">
         <span v-if="p.attractions" class="tag" :class="{ intl: p.country }">{{ p.attractions.length }} 个精选景区</span>
-        <span v-if="p.transport && p.transport.metro && p.transport.metro.length" class="tag">{{ p.transport.metro.length }} 条轨道线</span>
+        <span v-if="p.metro_lines && p.metro_lines.length" class="tag">{{ p.metro_lines.length }} 条轨道线</span>
       </div>
     </div>
   </router-link>

@@ -1,11 +1,16 @@
 <template>
   <div>
+    <!-- 首屏：真实照片背景 -->
     <section class="hero">
-      <h1>计划一次<span>清爽</span>的旅行</h1>
-      <p>30 座国内城市 · 12 个国际目的地 · 5866 个官方地铁站 · 396 个精选景区，交通线路一站查全</p>
-      <div class="search">
-        <input v-model="q" placeholder="搜索城市 / 景区 / 别称，如“山城”“西湖”" @keydown.enter="go" />
-        <button @click="go">搜索</button>
+      <img class="hero-bg" src="/img/beijing-cover.jpg?v=4" alt="">
+      <div class="hero-shade"></div>
+      <div class="hero-in">
+        <h1>晴途 <small>QingTu</small></h1>
+        <p>一张线网图，看懂一座城 —— 全国 24 城轨道线网图 · 5866 个站点 · 高铁 / BRT / 航线 · 396 个精选景区实拍</p>
+        <div class="search">
+          <input v-model="q" placeholder="搜索城市 / 景区 / 别称，如“山城”“西湖”" @keydown.enter="go" />
+          <button @click="go">搜索</button>
+        </div>
       </div>
     </section>
     <div class="wrap">
@@ -38,8 +43,20 @@ const go = () => {
   const hit = all.find(c => c.name === k || (c.aliases || []).includes(k) || c.name.includes(k))
   if (hit) return router.push(`/place/${hit.slug}`)
   for (const c of all) {
-    const i = c.attractions.findIndex(x => x.name.includes(k))
-    if (i >= 0) return router.push(`/place/${c.slug}`)
+    if (c.attractions.some(x => x.name.includes(k))) return router.push(`/place/${c.slug}`)
   }
 }
 </script>
+<style scoped>
+.hero { position: relative; height: 420px; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; }
+.hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,32,48,.42), rgba(20,32,48,.62)); }
+.hero-in { position: relative; color: #fff; padding: 0 20px; width: 100%; }
+.hero-in h1 { font-size: 46px; letter-spacing: 4px; text-shadow: 0 2px 16px rgba(0,0,0,.35); }
+.hero-in h1 small { font-size: 18px; letter-spacing: 2px; opacity: .85; font-weight: 400; margin-left: 10px; }
+.hero-in p { margin: 16px auto 0; max-width: 620px; font-size: 15px; line-height: 1.9; opacity: .95; text-shadow: 0 1px 8px rgba(0,0,0,.3); }
+.search { margin: 30px auto 0; max-width: 560px; display: flex; background: rgba(255,255,255,.96); border-radius: 999px; padding: 6px 8px 6px 20px; box-shadow: 0 10px 40px rgba(0,0,0,.28); }
+.search input { flex: 1; border: 0; outline: 0; font-size: 15px; background: transparent; color: var(--ink); }
+.search button { border: 0; background: var(--acc); color: #fff; border-radius: 999px; padding: 10px 26px; font-size: 15px; cursor: pointer; }
+@media (max-width: 640px) { .hero { height: 340px; } .hero-in h1 { font-size: 34px; } .hero-in p { font-size: 13px; } }
+</style>
