@@ -1,23 +1,28 @@
-<script setup>
-</script>
-
 <template>
-  <nav class="nav">
-    <div class="nav-inner">
-      <RouterLink to="/" class="logo">晴途</RouterLink>
-      <RouterLink to="/" class="nav-link">首页</RouterLink>
-      <RouterLink to="/cities" class="nav-link">国内城市</RouterLink>
-      <RouterLink to="/intl" class="nav-link">国际目的地</RouterLink>
-      <div class="nav-spacer"></div>
-    </div>
-  </nav>
-  <RouterView v-slot="{ Component }">
-    <Transition name="fade" mode="out-in">
-      <component :is="Component" />
-    </Transition>
-  </RouterView>
-  <footer>
-    <div>晴途 QingTu v2 · 一天一座城市 · 数据内置离线可用</div>
-    <div style="margin-top:6px">Vue 3 + Vite + Three.js · 2026</div>
-  </footer>
+  <div>
+    <nav class="nav">
+      <div class="nav-in">
+        <a href="#/" class="logo">晴途<small>QingTu · 文旅指南</small></a>
+        <a href="#/" class="route" :class="{ on: tab === 'home' }">首页</a>
+        <a href="#/cities" class="route" :class="{ on: tab === 'cities' }">国内游</a>
+        <a href="#/intl" class="route" :class="{ on: tab === 'intl' }">国际游</a>
+      </div>
+    </nav>
+    <router-view :key="$route.fullPath" />
+    <footer class="foot">晴途 QingTu · 地铁官方全量站点 / 高铁干线 / BRT·公交 / 航线 · 图片来自 Unsplash</footer>
+  </div>
 </template>
+<script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import cities from './data/cities.json'
+import intl from './data/intl.json'
+const route = useRoute()
+const tab = computed(() => {
+  if (route.path === '/cities') return 'cities'
+  if (route.path === '/intl') return 'intl'
+  if (route.path === '/') return 'home'
+  const p = [...cities, ...intl].find(x => x.slug === route.params.slug)
+  return p && p.country ? 'intl' : (p ? 'cities' : 'home')
+})
+</script>

@@ -1,78 +1,45 @@
+<template>
+  <div>
+    <section class="hero">
+      <h1>计划一次<span>清爽</span>的旅行</h1>
+      <p>30 座国内城市 · 12 个国际目的地 · 5866 个官方地铁站 · 396 个精选景区，交通线路一站查全</p>
+      <div class="search">
+        <input v-model="q" placeholder="搜索城市 / 景区 / 别称，如“山城”“西湖”" @keydown.enter="go" />
+        <button @click="go">搜索</button>
+      </div>
+    </section>
+    <div class="wrap">
+      <section class="sec">
+        <div class="sec-h"><h2>🔥 热门国内城市</h2><a href="#/cities" class="more">全部 30 城 →</a></div>
+        <div class="grid"><PlaceCard v-for="c in hot" :key="c.slug" :p="c" /></div>
+      </section>
+      <section class="sec">
+        <div class="sec-h"><h2>🌏 热门国际目的地</h2><a href="#/intl" class="more">全部 12 地 →</a></div>
+        <div class="grid"><PlaceCard v-for="d in hotI" :key="d.slug" :p="d" /></div>
+      </section>
+      <div style="height: 48px"></div>
+    </div>
+  </div>
+</template>
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import ChinaMap from '../components/ChinaMap.vue'
 import PlaceCard from '../components/PlaceCard.vue'
 import cities from '../data/cities.json'
 import intl from '../data/intl.json'
-
 const router = useRouter()
-const mode = ref('domestic')
 const q = ref('')
-const featured = cities.slice(0, 8)
-const totalAttr = cities.reduce((a, c) => a + c.attractions.length, 0)
-
-const mapSelect = (d) => router.push(`/place/${d.slug}`)
-const goSearch = () => {
-  if (!q.value.trim()) return
-  const hit = [...cities, ...intl].find(c => c.name.includes(q.value.trim()))
-  router.push(hit ? `/place/${hit.slug}` : `/cities?q=${encodeURIComponent(q.value)}`)
+const hot = computed(() => ['beijing', 'shanghai', 'chengdu', 'hangzhou', 'xian', 'chongqing', 'xiamen', 'sanya'].map(s => cities.find(c => c.slug === s)).filter(Boolean))
+const hotI = computed(() => ['tokyo', 'paris', 'singapore', 'bangkok'].map(s => intl.find(c => c.slug === s)).filter(Boolean))
+const go = () => {
+  const k = q.value.trim()
+  if (!k) return
+  const all = [...cities, ...intl]
+  const hit = all.find(c => c.name === k || (c.aliases || []).includes(k) || c.name.includes(k))
+  if (hit) return router.push(`/place/${hit.slug}`)
+  for (const c of all) {
+    const i = c.attractions.findIndex(x => x.name.includes(k))
+    if (i >= 0) return router.push(`/place/${c.slug}`)
+  }
 }
 </script>
-
-<template>
-  <div>
-    <header class="hero">
-      <div class="container hero-inner">
-        <h1>晴途 · QingTu</h1>
-        <p class="sub">3D 中国地图 · 30 座国内城市 · 12 个国际目的地 · 交通/景点/美食一站式</p>
-        <div class="hero-chips">
-          <RouterLink class="hero-chip" to="/cities">🇨🇳 国内城市</RouterLink>
-          <RouterLink class="hero-chip" to="/intl">🌏 国际目的地</RouterLink>
-          <a class="hero-chip" href="#map">🗺️ 3D 地图</a>
-        </div>
-        <div class="hero-search">
-          <input v-model="q" placeholder="搜索城市：成都 / 东京 / 巴黎…" @keydown.enter="goSearch" />
-          <button @click="goSearch">出发</button>
-        </div>
-        <div class="hero-stats">
-          <div><div class="num">{{ cities.length }}</div><div class="lab">国内城市</div></div>
-          <div><div class="num">{{ intl.length }}</div><div class="lab">国际目的地</div></div>
-          <div><div class="num">{{ totalAttr }}</div><div class="lab">精选景点</div></div>
-          <div><div class="num">100%</div><div class="lab">离线可用</div></div>
-        </div>
-      </div>
-    </header>
-
-    <section id="map" class="section">
-      <div class="container">
-        <div class="section-head"><h2>🗺️ 3D 交互地图</h2><span style="color:var(--ink-2)">全国 {{ cities.length }} 城一图纵览</span></div>
-        <ChinaMap :mode="mode" @mode="mode = $event" @select="mapSelect" />
-      </div>
-    </section>
-
-    <section class="section" style="padding-top:0">
-      <div class="container">
-        <div class="section-head">
-          <h2>🔥 热门城市</h2>
-          <RouterLink class="more" to="/cities">查看全部 →</RouterLink>
-        </div>
-        <div class="grid">
-          <PlaceCard v-for="c in featured" :key="c.slug" :place="c" />
-        </div>
-      </div>
-    </section>
-
-    <section class="section" style="padding-top:0">
-      <div class="container">
-        <div class="section-head">
-          <h2>🌏 国际目的地</h2>
-          <RouterLink class="more" to="/intl">查看全部 →</RouterLink>
-        </div>
-        <div class="grid">
-          <PlaceCard v-for="c in intl.slice(0, 4)" :key="c.slug" :place="c" intl />
-        </div>
-      </div>
-    </section>
-  </div>
-</template>

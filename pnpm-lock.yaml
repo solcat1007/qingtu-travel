@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      three:
-        specifier: ^0.170.0
-        version: 0.170.0
       vue:
         specifier: ^3.5.13
         version: 3.5.44
@@ -445,9 +442,6 @@ packages:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
 
-  three@0.170.0:
-    resolution: {integrity: sha512-FQK+LEpYc0fBD+J8g6oSEyyNzjp+Q7Ks1C568WWaoMRLW+TkNNWmenWeGgJjV105Gd+p/2ql1ZcjYvNiPZBhuQ==}
-
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
@@ -832,8 +826,6 @@ snapshots:
       fsevents: 2.3.3
 
   source-map-js@1.2.2: {}
-
-  three@0.170.0: {}
 
   tinyglobby@0.2.17:
     dependencies:

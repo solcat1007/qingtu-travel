@@ -1,26 +1,21 @@
-<script setup>
-defineProps({ place: { type: Object, required: true }, intl: { type: Boolean, default: false } })
-const grads = [
-  'linear-gradient(135deg,#a18cd1,#fbc2eb)', 'linear-gradient(135deg,#89a7f0,#b8c6ff)',
-  'linear-gradient(135deg,#f6a6c1,#ffd3a5)', 'linear-gradient(135deg,#84fab0,#8fd3f4)',
-  'linear-gradient(135deg,#c2a3f0,#fbc2eb)', 'linear-gradient(135deg,#fbc2eb,#a6c1ee)',
-]
-const bg = (s) => grads[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % grads.length]
-</script>
-
 <template>
-  <RouterLink :to="`/place/${place.slug}`" class="card">
-    <div class="card-cover" :style="{ background: bg(place.slug) }">
-      {{ place.emoji || place.flag }}
-      <span v-if="intl" class="flag">{{ place.flag }}</span>
+  <router-link :to="`/place/${p.slug}`" class="card">
+    <div class="ph">
+      <img v-if="!bad" :src="`/img/${p.slug}-cover.jpg`" loading="lazy" @error="bad = true" alt="">
+      <div v-else class="em">{{ p.emoji || p.flag }}</div>
     </div>
-    <div class="card-body">
-      <h3>{{ place.name }} <span class="tag">{{ place.tag }}</span></h3>
-      <p>{{ place.desc }}</p>
-      <div class="card-meta">
-        <span>🎯 {{ place.attractions.length }} 景点</span>
-        <span>🚇 {{ place.transport.metro?.slice(0, 12) || place.transport.rail?.slice(0, 12) }}</span>
+    <div class="bd">
+      <h3>{{ p.emoji || p.flag }} {{ p.name }}</h3>
+      <div class="sub">{{ p.country ? `${p.flag} ${p.country}` : p.province }} · {{ p.tag }}</div>
+      <div class="tags">
+        <span v-if="p.attractions" class="tag" :class="{ intl: p.country }">{{ p.attractions.length }} 个精选景区</span>
+        <span v-if="p.transport && p.transport.metro && p.transport.metro.length" class="tag">{{ p.transport.metro.length }} 条轨道线</span>
       </div>
     </div>
-  </RouterLink>
+  </router-link>
 </template>
+<script setup>
+import { ref } from 'vue'
+defineProps({ p: Object })
+const bad = ref(false)
+</script>
